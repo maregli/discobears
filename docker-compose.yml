@@ -1,0 +1,25 @@
+name: 'discobears'
+services:
+  backend:
+    container_name: discobears-backend
+    build: ./backend
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json
+    ports:
+      - "5001:5000"
+    env_file:
+      - ./backend/.env
+
+  frontend:
+    container_name: discobears-frontend
+    build: ./frontend
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    environment:
+      - WATCHPACK_POLLING=true

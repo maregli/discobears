@@ -1,0 +1,44 @@
+# Environment files
+**/.env
+**/.env.local
+**/.env*.local
+
+# Firebase credentials
+**/firebase-service-account.json
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.venv/
+**/venv/
+**/env/
+**/.poetry/
+
+# Node
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/build/
+**/.pnp
+**/.pnp.js
+
+# IDE
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+
+# OS
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Testing
+**/coverage/
+**/.pytest_cache/
+
+# Misc
+*.log

@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "discobears-backend"
+version = "0.1.0"
+description = "Backend service for festival map scraping and Firebase upload"
+authors = ["Marc Egli <marc_e@hispeed.ch>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+flask = "^3.1.0"
+flask-cors = "^5.0.0"
+firebase-admin = "^6.5.0"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.12.3"
+lxml = "^5.3.0"
+geopy = "^2.4.1"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,210 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Leaflet popup customization */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.leaflet-popup-tip-container {
+  display: block !important;
+}
+
+/* Make popup interactive - prevent it from closing when hovering */
+.festival-popup .leaflet-popup-content-wrapper,
+.festival-popup .leaflet-popup-tip {
+  pointer-events: auto !important;
+}
+
+/* Custom scrollbar for popup */
+.festival-popup .leaflet-popup-content > div::-webkit-scrollbar {
+  width: 6px;
+}
+
+.festival-popup .leaflet-popup-content > div::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.festival-popup .leaflet-popup-content > div::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.festival-popup .leaflet-popup-content > div::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Leaflet Tooltip Styling */
+.leaflet-tooltip {
+  background-color: white !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  padding: 0 !important;
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: white !important;
+}
+
+.leaflet-tooltip-bottom:before {
+  border-bottom-color: white !important;
+}
+
+.leaflet-tooltip-left:before {
+  border-left-color: white !important;
+}
+
+.leaflet-tooltip-right:before {
+  border-right-color: white !important;
+}
+
+/* Custom marker animation */
+.custom-marker {
+  animation: markerBounce 0.5s ease-out;
+}
+
+@keyframes markerBounce {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(5px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  body {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+  }
+
+  /* Make map controls larger on mobile */
+  .leaflet-control-zoom a {
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 44px !important;
+    font-size: 24px !important;
+  }
+
+  /* Position zoom controls better on mobile */
+  .leaflet-top.leaflet-left {
+    top: auto !important;
+    bottom: 100px !important;
+    right: 10px !important;
+    left: auto !important;
+  }
+
+  /* Adjust marker size for touch */
+  .custom-marker,
+  .custom-cluster-marker {
+    transform: scale(1.1) !important;
+    cursor: pointer;
+  }
+
+  /* Make popup content more readable */
+  .leaflet-popup-content-wrapper {
+    max-width: 280px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Disable tooltip on mobile (they interfere with touch) */
+  .leaflet-tooltip {
+    display: none !important;
+  }
+
+  /* Improve touch target sizes */
+  button {
+    min-height: 44px;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+
+  input {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+
+  /* Prevent pull-to-refresh on map */
+  .leaflet-container {
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
+  }
+}
+
+/* Tablet breakpoint */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Narrower sidebar on tablets */
+  .festival-sidebar {
+    width: 320px !important;
+  }
+}
+
+/* Smooth scrolling for mobile drawers */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
