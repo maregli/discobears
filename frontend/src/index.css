@@ -130,16 +130,15 @@ code {
 @media (max-width: 768px) {
   body {
     overflow: hidden;
-    position: fixed;
     width: 100%;
     height: 100%;
+    margin: 0;
+    padding: 0;
   }
 
-  #root {
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    position: fixed;
+  html, body, #root {
+    height: 100%;
+    width: 100%;
   }
 
   /* Make map controls larger on mobile */
@@ -158,19 +157,6 @@ code {
     left: auto !important;
   }
 
-  /* Adjust marker size for touch */
-  .custom-marker,
-  .custom-cluster-marker {
-    transform: scale(1.1) !important;
-    cursor: pointer;
-  }
-
-  /* Make popup content more readable */
-  .leaflet-popup-content-wrapper {
-    max-width: 280px !important;
-    border-radius: 12px !important;
-  }
-
   /* Disable tooltip on mobile (they interfere with touch) */
   .leaflet-tooltip {
     display: none !important;
@@ -179,17 +165,10 @@ code {
   /* Improve touch target sizes */
   button {
     min-height: 44px;
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
 
   input {
     font-size: 16px !important; /* Prevent zoom on iOS */
-  }
-
-  /* Prevent pull-to-refresh on map */
-  .leaflet-container {
-    overscroll-behavior: contain;
-    touch-action: pan-x pan-y;
   }
 }
 

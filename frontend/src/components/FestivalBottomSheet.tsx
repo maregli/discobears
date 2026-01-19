@@ -6,17 +6,33 @@ interface FestivalBottomSheetProps {
   festivals: Festival[];
   onClose: () => void;
   initialIndex?: number;
+  currentIndex?: number;
+  onIndexChange?: (index: number) => void;
+  isPersistent?: boolean; // If true, no close button/backdrop
 }
 
 const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   festivals,
   onClose,
-  initialIndex = 0
+  initialIndex = 0,
+  currentIndex: controlledIndex,
+  onIndexChange,
+  isPersistent = false
 }) => {
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [internalIndex, setInternalIndex] = useState(initialIndex);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+
+  // Use controlled index if provided, otherwise use internal state
+  const currentIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
+  const setCurrentIndex = (index: number) => {
+    if (onIndexChange) {
+      onIndexChange(index);
+    } else {
+      setInternalIndex(index);
+    }
+  };
 
   if (festivals.length === 0) return null;
 
@@ -70,19 +86,21 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
 
   return (
     <>
-      {/* Backdrop for closing */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 998,
-          backgroundColor: 'transparent'
-        }}
-        onClick={onClose}
-      />
+      {/* Backdrop for closing - only if not persistent */}
+      {!isPersistent && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 998,
+            backgroundColor: 'transparent'
+          }}
+          onClick={onClose}
+        />
+      )}
 
       {/* Bottom Sheet */}
       <div
@@ -97,7 +115,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
           boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
           zIndex: 999,
           animation: 'slideUpSheet 0.3s ease',
-          maxHeight: '40vh',
+          maxHeight: isPersistent ? '35vh' : '40vh',
           display: 'flex',
           flexDirection: 'column'
         }}
@@ -105,19 +123,21 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Handle bar */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '12px 0 8px 0'
-        }}>
+        {/* Handle bar - only if not persistent */}
+        {!isPersistent && (
           <div style={{
-            width: '40px',
-            height: '4px',
-            backgroundColor: '#d0d0d0',
-            borderRadius: '2px'
-          }} />
-        </div>
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '12px 0 8px 0'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '4px',
+              backgroundColor: '#d0d0d0',
+              borderRadius: '2px'
+            }} />
+          </div>
+        )}
 
         {/* Content */}
         <div style={{

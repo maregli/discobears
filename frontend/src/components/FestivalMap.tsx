@@ -188,6 +188,7 @@ const FestivalMap: React.FC = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [selectedClusterFestivals, setSelectedClusterFestivals] = useState<Festival[]>([]);
+  const [currentBottomSheetIndex, setCurrentBottomSheetIndex] = useState(0);
   
   // Filters
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -229,13 +230,11 @@ const FestivalMap: React.FC = () => {
 
   // Invalidate map size when switching between mobile/desktop
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (mapRef.current) {
-        mapRef.current.invalidateSize();
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 100);
+    }
   }, [isMobile]);
 
   // Load ratings for all festivals
@@ -331,6 +330,15 @@ const FestivalMap: React.FC = () => {
     f.coordinates && f.coordinates.lat && f.coordinates.lng
   ).length;
 
+  // On mobile, always show bottom sheet with visible festivals
+  useEffect(() => {
+    if (isMobile && visibleFestivals.length > 0) {
+      setSelectedClusterFestivals(visibleFestivals);
+      setShowBottomSheet(true);
+      setCurrentBottomSheetIndex(0);
+    }
+  }, [isMobile, visibleFestivals.length]);
+
   // Cluster festivals based on zoom level
   const clusteredFestivals = useMemo(() => {
     return clusterFestivals(filteredFestivals, currentZoom);
@@ -352,9 +360,17 @@ const FestivalMap: React.FC = () => {
     if (cluster.festivals.length === 1) {
       // Single festival
       if (isMobile) {
-        // On mobile, show bottom sheet
-        setSelectedClusterFestivals([cluster.festivals[0]]);
-        setShowBottomSheet(true);
+        // On mobile, update bottom sheet to show this festival
+        const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
+        if (festivalIndex !== -1) {
+          setCurrentBottomSheetIndex(festivalIndex);
+          // Optionally center map on this festival
+          if (mapRef.current) {
+            mapRef.current.setView([cluster.center.lat, cluster.center.lng], 12, {
+              animate: true
+            });
+          }
+        }
       } else {
         // On desktop, navigate to detail page
         navigate(`/festival/${cluster.festivals[0].id}`);
@@ -362,9 +378,11 @@ const FestivalMap: React.FC = () => {
     } else if (mapRef.current) {
       // Multiple festivals - zoom to show them all
       if (isMobile && currentZoom >= 12) {
-        // On mobile at high zoom, show bottom sheet with all festivals
-        setSelectedClusterFestivals(cluster.festivals);
-        setShowBottomSheet(true);
+        // On mobile at high zoom, update bottom sheet with first festival in cluster
+        const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
+        if (festivalIndex !== -1) {
+          setCurrentBottomSheetIndex(festivalIndex);
+        }
       } else {
         // Check if all festivals are at exact same location
         const uniqueLocations = new Set(
@@ -438,17 +456,11 @@ const FestivalMap: React.FC = () => {
         <div style={{ 
           width: '100vw', 
           height: '100vh', 
-          position: 'fixed',
-          top: 0,
-          left: 0,
           display: 'flex', 
-          flexDirection: 'column',
-          overflow: 'hidden'
+          flexDirection: 'column'
         }}>
           {/* Mobile Top Bar */}
           <div style={{
-            position: 'relative',
-            zIndex: 1000,
             backgroundColor: 'white',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             padding: '12px 16px',
@@ -574,29 +586,15 @@ const FestivalMap: React.FC = () => {
             </div>
           </div>
 
-          {/* Map */}
-          <div style={{ 
-            flex: 1, 
-            width: '100%', 
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-              <MapContainer
-                key="mobile-map"
-                center={[50, 10]}
-                zoom={5}
-                style={{ width: '100%', height: '100%' }}
-                ref={mapRef}
-                whenReady={() => {
-                  // Force map to invalidate size after container is ready
-                  setTimeout(() => {
-                    if (mapRef.current) {
-                      mapRef.current.invalidateSize();
-                    }
-                  }, 200);
-                }}
-              >
+          {/* Map - SIMPLIFIED */}
+          <div style={{ flex: 1, width: '100%', height: '100%' }}>
+            <MapContainer
+              key="mobile-map"
+              center={[50, 10]}
+              zoom={5}
+              style={{ width: '100%', height: '100%' }}
+              ref={mapRef}
+            >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -624,13 +622,15 @@ const FestivalMap: React.FC = () => {
               })}
             </MapContainer>
           </div>
-          </div>
 
-          {/* Bottom Sheet */}
+          {/* Bottom Sheet - Always visible on mobile */}
           {showBottomSheet && selectedClusterFestivals.length > 0 && (
             <FestivalBottomSheet
               festivals={selectedClusterFestivals}
               onClose={() => setShowBottomSheet(false)}
+              currentIndex={currentBottomSheetIndex}
+              onIndexChange={setCurrentBottomSheetIndex}
+              isPersistent={true}
             />
           )}
 
