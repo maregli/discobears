@@ -199,7 +199,6 @@ const FestivalMap: React.FC = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showMobileProfile, setShowMobileProfile] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
-  const [selectedClusterFestivals, setSelectedClusterFestivals] = useState<Festival[]>([]);
   const [currentBottomSheetIndex, setCurrentBottomSheetIndex] = useState(0);
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
   
@@ -339,25 +338,22 @@ const FestivalMap: React.FC = () => {
     });
   }, [filteredFestivals, mapBounds]);
 
-  // On mobile, update festival list for bottom sheet
+  // Reset index if it becomes out of bounds (e.g., if visibleFestivals changes while sheet is open)
   useEffect(() => {
-    if (isMobile && visibleFestivals.length > 0) {
-      // Only update the festivals list, don't auto-open
-      setSelectedClusterFestivals(visibleFestivals);
-      if (showBottomSheet) {
-        // Reset to first festival when list changes
+    if (isMobile && showBottomSheet && visibleFestivals.length > 0) {
+      if (currentBottomSheetIndex >= visibleFestivals.length) {
         setCurrentBottomSheetIndex(0);
       }
     }
-  }, [isMobile, visibleFestivals, showBottomSheet]);
+  }, [isMobile, showBottomSheet, visibleFestivals.length, currentBottomSheetIndex]);
 
   // Highlight marker when bottom sheet index changes on mobile
   useEffect(() => {
-    if (isMobile && visibleFestivals.length > 0 && currentBottomSheetIndex < visibleFestivals.length) {
+    if (isMobile && showBottomSheet && visibleFestivals.length > 0 && currentBottomSheetIndex < visibleFestivals.length) {
       const currentFestival = visibleFestivals[currentBottomSheetIndex];
       setHighlightedFestival(currentFestival.id);
     }
-  }, [currentBottomSheetIndex, isMobile, visibleFestivals]);
+  }, [currentBottomSheetIndex, isMobile, showBottomSheet, visibleFestivals]);
 
   // Cluster festivals based on zoom level
   const clusteredFestivals = useMemo(() => {
@@ -383,6 +379,7 @@ const FestivalMap: React.FC = () => {
         const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
         if (festivalIndex !== -1) {
           setCurrentBottomSheetIndex(festivalIndex);
+          setShowBottomSheet(true);
           // Optionally center map on this festival
           if (mapRef.current) {
             mapRef.current.setView([cluster.center.lat, cluster.center.lng], 12, {
@@ -401,6 +398,7 @@ const FestivalMap: React.FC = () => {
         const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
         if (festivalIndex !== -1) {
           setCurrentBottomSheetIndex(festivalIndex);
+          setShowBottomSheet(true);
         }
       } else {
         // Check if all festivals are at exact same location
@@ -650,7 +648,10 @@ const FestivalMap: React.FC = () => {
                 {/* Show list button when bottom sheet is closed */}
                 {visibleFestivals.length > 0 && (
                   <button
-                    onClick={() => setShowBottomSheet(true)}
+                    onClick={() => {
+                      setCurrentBottomSheetIndex(0);
+                      setShowBottomSheet(true);
+                    }}
                     style={{
                       position: 'absolute',
                       bottom: '32px',
@@ -716,9 +717,9 @@ const FestivalMap: React.FC = () => {
           </div>
 
           {/* Bottom Sheet - Closable on mobile */}
-          {showBottomSheet && selectedClusterFestivals.length > 0 && (
+          {showBottomSheet && visibleFestivals.length > 0 && (
             <FestivalBottomSheet
-              festivals={selectedClusterFestivals}
+              festivals={visibleFestivals}
               onClose={() => {
                 setShowBottomSheet(false);
                 setIsBottomSheetExpanded(false);

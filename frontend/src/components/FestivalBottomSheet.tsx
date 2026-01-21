@@ -27,10 +27,10 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   const navigate = useNavigate();
   const viewportHeight = useViewportHeight();
   const [internalIndex, setInternalIndex] = useState(initialIndex);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
-  const [touchStartY, setTouchStartY] = useState(0);
-  const [touchEndY, setTouchEndY] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [touchEndY, setTouchEndY] = useState<number | null>(null);
 
   // Use controlled index if provided, otherwise use internal state
   const currentIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
@@ -44,7 +44,13 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
 
   if (festivals.length === 0) return null;
 
-  const festival = festivals[currentIndex];
+  // Ensure currentIndex is within valid bounds
+  const safeIndex = Math.max(0, Math.min(currentIndex, festivals.length - 1));
+  const festival = festivals[safeIndex];
+
+  if (!festival) {
+    return null;
+  }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
@@ -57,6 +63,11 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   };
 
   const handleTouchEnd = () => {
+    // Only process if we have valid touch data (touchStart was actually set)
+    if (touchStart === null || touchEnd === null || touchStartY === null || touchEndY === null) {
+      return;
+    }
+    
     const horizontalSwipe = touchStart - touchEnd;
     const verticalSwipe = touchStartY - touchEndY;
     
@@ -83,6 +94,12 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
         setCurrentIndex(currentIndex - 1);
       }
     }
+    
+    // Reset touch data
+    setTouchStart(null);
+    setTouchEnd(null);
+    setTouchStartY(null);
+    setTouchEndY(null);
   };
 
   const handleNext = () => {
@@ -98,6 +115,9 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   };
 
   const handleViewDetails = () => {
+    // Use the festival variable that was calculated at render time
+    // This ensures we navigate to the exact festival being displayed
+    // Same approach as desktop FestivalCard component
     navigate(`/festival/${festival.id}`);
   };
 
@@ -243,9 +263,9 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
                   <div
                     key={idx}
                     style={{
-                      width: idx === currentIndex ? '20px' : '6px',
+                      width: idx === safeIndex ? '20px' : '6px',
                       height: '6px',
-                      backgroundColor: idx === currentIndex ? '#0066ff' : '#d0d0d0',
+                      backgroundColor: idx === safeIndex ? '#0066ff' : '#d0d0d0',
                       borderRadius: '3px',
                       transition: 'all 0.3s ease'
                     }}
@@ -259,7 +279,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
                 fontSize: '13px',
                 color: '#888'
               }}>
-                {currentIndex + 1} of {festivals.length} festivals in this area
+                {safeIndex + 1} of {festivals.length} festivals in this area
               </div>
             </>
           )}
