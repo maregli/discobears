@@ -380,7 +380,7 @@ const FestivalMap: React.FC = () => {
         if (festivalIndex !== -1) {
           setCurrentBottomSheetIndex(festivalIndex);
           setShowBottomSheet(true);
-          // Optionally center map on this festival
+          // Center map on this festival
           if (mapRef.current) {
             mapRef.current.setView([cluster.center.lat, cluster.center.lng], 12, {
               animate: true
@@ -392,16 +392,42 @@ const FestivalMap: React.FC = () => {
         navigate(`/festival/${cluster.festivals[0].id}`);
       }
     } else if (mapRef.current) {
-      // Multiple festivals - zoom to show them all
-      if (isMobile && currentZoom >= 12) {
-        // On mobile at high zoom, update bottom sheet with first festival in cluster
+      // Multiple festivals cluster
+      if (isMobile) {
+        // On mobile: zoom in to reveal pins AND show bottom sheet
+        // Check if all festivals are at exact same location
+        const uniqueLocations = new Set(
+          cluster.festivals.map(f => `${f.coordinates!.lat.toFixed(6)},${f.coordinates!.lng.toFixed(6)}`)
+        );
+        
+        if (uniqueLocations.size === 1) {
+          // All at same location - zoom in and show bottom sheet with all festivals
+          mapRef.current.setView(
+            [cluster.center.lat, cluster.center.lng],
+            Math.min(currentZoom + 3, 18),
+            { animate: true, duration: 0.5 }
+          );
+        } else {
+          // Different locations - zoom to fit all
+          const coordinates = cluster.festivals.map(f => [f.coordinates!.lat, f.coordinates!.lng] as [number, number]);
+          const bounds = L.latLngBounds(coordinates);
+          mapRef.current.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 15,
+            animate: true,
+            duration: 0.5
+          });
+        }
+        
+        // After zoom, show bottom sheet with first festival in the cluster
+        // The visibleFestivals will update after the map moves, so we'll show the bottom sheet
         const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
         if (festivalIndex !== -1) {
           setCurrentBottomSheetIndex(festivalIndex);
           setShowBottomSheet(true);
         }
       } else {
-        // Check if all festivals are at exact same location
+        // Desktop: Check if all festivals are at exact same location
         const uniqueLocations = new Set(
           cluster.festivals.map(f => `${f.coordinates!.lat.toFixed(6)},${f.coordinates!.lng.toFixed(6)}`)
         );
