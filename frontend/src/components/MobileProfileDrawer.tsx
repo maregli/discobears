@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from 'contexts/AuthContext';
+import { useViewportHeight } from 'hooks/useViewportHeight';
 
 interface MobileProfileDrawerProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ const MobileProfileDrawer: React.FC<MobileProfileDrawerProps> = ({
   onClose,
   onOpenLogin
 }) => {
+  const viewportHeight = useViewportHeight();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -30,7 +32,7 @@ const MobileProfileDrawer: React.FC<MobileProfileDrawerProps> = ({
           top: 0,
           left: 0,
           right: 0,
-          bottom: 0,
+          height: `${viewportHeight}px`,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 9998,
           animation: 'fadeIn 0.3s ease'
@@ -44,7 +46,7 @@ const MobileProfileDrawer: React.FC<MobileProfileDrawerProps> = ({
         top: 0,
         left: 0,
         right: 0,
-        height: '100dvh',
+        height: `${viewportHeight}px`,
         backgroundColor: 'white',
         zIndex: 9999,
         display: 'flex',

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useViewportHeight } from 'hooks/useViewportHeight';
 
 interface MobileFilterDrawerProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
   onClearFilters,
   festivalCount
 }) => {
+  const viewportHeight = useViewportHeight();
   const [isGenreExpanded, setIsGenreExpanded] = useState(true);
   const [isDateExpanded, setIsDateExpanded] = useState(true);
 
@@ -57,7 +59,7 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
           top: 0,
           left: 0,
           right: 0,
-          bottom: 0,
+          height: `${viewportHeight}px`,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 9998,
           animation: 'fadeIn 0.3s ease'
@@ -71,7 +73,7 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
         top: 0,
         left: 0,
         right: 0,
-        height: '100dvh',
+        height: `${viewportHeight}px`,
         backgroundColor: 'white',
         zIndex: 9999,
         display: 'flex',

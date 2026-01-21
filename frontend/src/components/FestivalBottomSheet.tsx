@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Festival } from 'types/festival';
+import { useViewportHeight } from 'hooks/useViewportHeight';
 
 interface FestivalBottomSheetProps {
   festivals: Festival[];
@@ -24,6 +25,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   onToggleExpand
 }) => {
   const navigate = useNavigate();
+  const viewportHeight = useViewportHeight();
   const [internalIndex, setInternalIndex] = useState(initialIndex);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
@@ -108,7 +110,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
           top: 0,
           left: 0,
           right: 0,
-          bottom: 0,
+          height: `${viewportHeight}px`,
           zIndex: 998,
           backgroundColor: 'transparent'
         }}
@@ -119,15 +121,17 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: 'calc(16px + env(safe-area-inset-bottom, 16px))',
+          top: 'auto',
+          bottom: '16px',
           left: '12px',
           right: '12px',
+          maxHeight: `${viewportHeight - 32}px`,
           backgroundColor: 'white',
           borderRadius: '20px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           zIndex: 999,
           animation: 'slideUpSheet 0.3s ease',
-          height: isExpanded ? '50vh' : 'auto',
+          height: isExpanded ? `${viewportHeight * 0.5}px` : 'auto',
           display: 'flex',
           flexDirection: 'column',
           transition: 'height 0.3s ease'
