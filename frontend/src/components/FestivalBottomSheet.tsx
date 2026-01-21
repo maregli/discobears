@@ -28,6 +28,8 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   const viewportHeight = useViewportHeight();
   const [internalIndex, setInternalIndex] = useState(initialIndex);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use controlled index if provided, otherwise use internal state
   const currentIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
@@ -39,9 +41,9 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
     }
   };
 
-  // Scroll to current index when it changes
+  // Scroll to current index when it changes (only if not user scrolling)
   useEffect(() => {
-    if (carouselRef.current) {
+    if (carouselRef.current && !isUserScrollingRef.current) {
       // Card width is 85vw + 12px gap
       const cardWidth = window.innerWidth * 0.85 + 12;
       carouselRef.current.scrollTo({
@@ -56,16 +58,41 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   // Ensure currentIndex is within valid bounds
   const safeIndex = Math.max(0, Math.min(currentIndex, festivals.length - 1));
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    // Detect which card is most visible and update index
-    const scrollLeft = e.currentTarget.scrollLeft;
-    // Card width is 85vw + 12px gap
-    const cardWidth = window.innerWidth * 0.85 + 12;
-    const newIndex = Math.round(scrollLeft / cardWidth);
-    
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < festivals.length) {
-      setCurrentIndex(newIndex);
+  const handleScrollStart = () => {
+    isUserScrollingRef.current = true;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Mark that user is scrolling
+    isUserScrollingRef.current = true;
+    
+    // Capture scroll position immediately (don't use e.currentTarget in timeout)
+    const scrollLeft = e.currentTarget.scrollLeft;
+    
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Set timeout to detect end of scroll
+    scrollTimeoutRef.current = setTimeout(() => {
+      // Detect which card is most visible and update index
+      // Card width is 85vw + 12px gap
+      const cardWidth = window.innerWidth * 0.85 + 12;
+      const newIndex = Math.round(scrollLeft / cardWidth);
+      
+      if (newIndex !== currentIndex && newIndex >= 0 && newIndex < festivals.length) {
+        setCurrentIndex(newIndex);
+      }
+      
+      // Reset scrolling flag after a brief delay
+      setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 100);
+    }, 150);
   };
 
   const handleViewDetails = (festivalId: string) => {
@@ -128,6 +155,8 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
         <div
           ref={carouselRef}
           onScroll={handleScroll}
+          onTouchStart={handleScrollStart}
+          onMouseDown={handleScrollStart}
           style={{
             display: 'flex',
             overflowX: 'auto',
