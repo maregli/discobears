@@ -8,7 +8,14 @@ export interface Festival {
   venue_type: string;
   genres: string[];
   region: string;
-  venue: string;
+  // Address fields (structured)
+  street?: string;
+  street_number?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  // Legacy venue field (for backwards compatibility during migration)
+  venue?: string;
   venue_formatted?: string; // Formatted venue with proper spacing
   coordinates: {
     lat: number;

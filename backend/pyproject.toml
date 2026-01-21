@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Backend service for festival map scraping and Firebase upload"
 authors = ["Marc Egli <marc_e@hispeed.ch>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"

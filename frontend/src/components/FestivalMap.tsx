@@ -9,65 +9,75 @@ import FestivalCard from './FestivalCard';
 import FilterPanel from './FilterPanel';
 import LoginModal from './LoginModal';
 import MobileFilterDrawer from './MobileFilterDrawer';
+import MobileProfileDrawer from './MobileProfileDrawer';
 import FestivalBottomSheet from './FestivalBottomSheet';
 import { useAuth } from 'contexts/AuthContext';
 import { useIsMobile } from 'hooks/useIsMobile';
 
-// Custom marker icon - modern style
+// Custom marker icon - modern style with enhanced hover effect
 const createCustomIcon = (isHighlighted: boolean, count?: number, isMobile: boolean = false) => {
   if (count && count > 1) {
     // Cluster marker
     const size = isMobile ? 48 : 40;
+    const highlightedSize = isHighlighted ? size * 1.3 : size;
     return L.divIcon({
       className: 'custom-cluster-marker',
       html: `
         <div style="
-          width: ${size}px;
-          height: ${size}px;
-          background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
-          border: 3px solid white;
+          width: ${highlightedSize}px;
+          height: ${highlightedSize}px;
+          background: ${isHighlighted 
+            ? 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)' 
+            : 'linear-gradient(135deg, #0066ff 0%, #0052cc 100%)'};
+          border: ${isHighlighted ? '4px' : '3px'} solid white;
           border-radius: 50%;
-          box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+          box-shadow: ${isHighlighted 
+            ? '0 6px 20px rgba(255,68,68,0.6), 0 0 0 4px rgba(255,68,68,0.3)' 
+            : '0 3px 8px rgba(0,0,0,0.3)'};
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: ${isMobile ? '18px' : '16px'};
           font-weight: bold;
           color: white;
-          transition: all 0.2s ease;
+          transition: all 0.3s ease;
+          animation: ${isHighlighted ? 'pulse 1.5s ease-in-out infinite' : 'none'};
         ">
           ${count}
         </div>
       `,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
+      iconSize: [highlightedSize, highlightedSize],
+      iconAnchor: [highlightedSize / 2, highlightedSize / 2],
     });
   }
   
   // Individual marker
   const size = isMobile ? 40 : 32;
+  const highlightedSize = isHighlighted ? size * 1.4 : size;
   return L.divIcon({
     className: 'custom-marker',
     html: `
       <div style="
-        width: ${size}px;
-        height: ${size}px;
+        width: ${highlightedSize}px;
+        height: ${highlightedSize}px;
         background: ${isHighlighted ? '#ff4444' : '#0066ff'};
-        border: 3px solid white;
+        border: ${isHighlighted ? '4px' : '3px'} solid white;
         border-radius: 50%;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        box-shadow: ${isHighlighted 
+          ? '0 6px 20px rgba(255,68,68,0.6), 0 0 0 4px rgba(255,68,68,0.3)' 
+          : '0 3px 8px rgba(0,0,0,0.3)'};
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: ${isMobile ? '18px' : '16px'};
-        transition: all 0.2s ease;
-        transform: ${isHighlighted ? 'scale(1.2)' : 'scale(1)'};
+        transition: all 0.3s ease;
+        animation: ${isHighlighted ? 'pulse 1.5s ease-in-out infinite' : 'none'};
       ">
         🎵
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [highlightedSize, highlightedSize],
+    iconAnchor: [highlightedSize / 2, highlightedSize / 2],
   });
 };
 
@@ -186,9 +196,11 @@ const FestivalMap: React.FC = () => {
   
   // Mobile-specific states
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showMobileProfile, setShowMobileProfile] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [selectedClusterFestivals, setSelectedClusterFestivals] = useState<Festival[]>([]);
   const [currentBottomSheetIndex, setCurrentBottomSheetIndex] = useState(0);
+  const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
   
   // Filters
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -326,18 +338,25 @@ const FestivalMap: React.FC = () => {
     });
   }, [filteredFestivals, mapBounds]);
 
-  const festivalsWithoutCoords = festivals.length - festivals.filter(f => 
-    f.coordinates && f.coordinates.lat && f.coordinates.lng
-  ).length;
-
-  // On mobile, always show bottom sheet with visible festivals
+  // On mobile, update festival list for bottom sheet
   useEffect(() => {
     if (isMobile && visibleFestivals.length > 0) {
+      // Only update the festivals list, don't auto-open
       setSelectedClusterFestivals(visibleFestivals);
-      setShowBottomSheet(true);
-      setCurrentBottomSheetIndex(0);
+      if (showBottomSheet) {
+        // Reset to first festival when list changes
+        setCurrentBottomSheetIndex(0);
+      }
     }
-  }, [isMobile, visibleFestivals.length]);
+  }, [isMobile, visibleFestivals.length, showBottomSheet]);
+
+  // Highlight marker when bottom sheet index changes on mobile
+  useEffect(() => {
+    if (isMobile && visibleFestivals.length > 0 && currentBottomSheetIndex < visibleFestivals.length) {
+      const currentFestival = visibleFestivals[currentBottomSheetIndex];
+      setHighlightedFestival(currentFestival.id);
+    }
+  }, [currentBottomSheetIndex, isMobile, visibleFestivals]);
 
   // Cluster festivals based on zoom level
   const clusteredFestivals = useMemo(() => {
@@ -446,9 +465,13 @@ const FestivalMap: React.FC = () => {
 
   return (
     <div style={{ 
-      width: '100%', 
-      height: '100%', 
+      width: '100vw', 
+      height: '100vh', 
       display: 'flex',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {/* MOBILE VIEW */}
@@ -461,133 +484,201 @@ const FestivalMap: React.FC = () => {
         }}>
           {/* Mobile Top Bar */}
           <div style={{
-            backgroundColor: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            backgroundColor: 'transparent',
             padding: '12px 16px',
-            flexShrink: 0
+            flexShrink: 0,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000
           }}>
-            {/* Search Bar */}
-            <input
-              type="text"
-              placeholder="Search festivals..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '8px',
-                fontSize: '15px',
-                boxSizing: 'border-box',
-                marginBottom: '12px'
-              }}
-            />
-            
-            {/* Filter and Login Buttons */}
+            {/* Search Bar with integrated actions */}
             <div style={{
               display: 'flex',
-              gap: '8px',
-              justifyContent: 'space-between',
+              gap: '10px',
               alignItems: 'center'
             }}>
+              {/* Search Container with Actions */}
+              <div style={{
+                flex: 1,
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: 'white',
+                border: '1px solid #d0d0d0',
+                borderRadius: '24px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                overflow: 'hidden',
+                height: '48px'
+              }}>
+                {/* Search Icon */}
+                <span style={{
+                  padding: '0 12px',
+                  fontSize: '18px',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  🔍
+                </span>
+                
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search festivals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 8px',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '15px',
+                    backgroundColor: 'transparent',
+                    height: '100%'
+                  }}
+                />
+                
+                {/* Filter Button */}
+                <button
+                  onClick={() => setShowMobileFilters(true)}
+                  title="Filter"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '0 12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#666',
+                    height: '100%',
+                    position: 'relative'
+                  }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="4" y1="6" x2="10" y2="6"></line>
+                    <line x1="14" y1="6" x2="20" y2="6"></line>
+                    <circle cx="12" cy="6" r="2"></circle>
+                    <line x1="4" y1="12" x2="16" y2="12"></line>
+                    <line x1="20" y1="12" x2="20" y2="12"></line>
+                    <circle cx="18" cy="12" r="2"></circle>
+                    <line x1="4" y1="18" x2="8" y2="18"></line>
+                    <line x1="12" y1="18" x2="20" y2="18"></line>
+                    <circle cx="10" cy="18" r="2"></circle>
+                  </svg>
+                  {(selectedGenres.length > 0 || dateRange.startMonth !== 1 || dateRange.endMonth !== 12) && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      backgroundColor: '#0066ff',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '16px',
+                      height: '16px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {selectedGenres.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+              
+              {/* Profile Button - Round White Button */}
               <button
-                onClick={() => setShowMobileFilters(true)}
+                onClick={() => setShowMobileProfile(true)}
+                title="Profile"
                 style={{
-                  flex: 1,
-                  padding: '10px 16px',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
                   backgroundColor: 'white',
                   border: '1px solid #d0d0d0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  fontSize: '22px',
+                  color: user ? '#0066ff' : '#666',
+                  flexShrink: 0
                 }}
               >
-                ⚙️ Filter
-                {(selectedGenres.length > 0 || dateRange.startMonth !== 1 || dateRange.endMonth !== 12) && (
-                  <span style={{
-                    backgroundColor: '#0066ff',
-                    color: 'white',
-                    borderRadius: '10px',
-                    padding: '2px 6px',
-                    fontSize: '12px',
-                    minWidth: '18px',
-                    textAlign: 'center'
-                  }}>
-                    {selectedGenres.length}
-                  </span>
-                )}
+                👤
               </button>
-
-              <button
-                onClick={() => navigate('/submit-festival')}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                + Submit
-              </button>
-
-              {user ? (
-                <button
-                  onClick={logout}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: 'white',
-                    border: '1px solid #d0d0d0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    color: '#0066ff'
-                  }}
-                >
-                  Logout
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: 'white',
-                    border: '1px solid #d0d0d0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    color: '#0066ff'
-                  }}
-                >
-                  Sign In
-                </button>
-              )}
-            </div>
-
-            {/* Festival count */}
-            <div style={{
-              marginTop: '8px',
-              fontSize: '13px',
-              color: '#666',
-              textAlign: 'center'
-            }}>
-              {filteredFestivals.length} festivals found
             </div>
           </div>
 
           {/* Map - SIMPLIFIED */}
-          <div style={{ flex: 1, width: '100%', height: '100%' }}>
+          <div style={{ flex: 1, width: '100%', height: '100%', position: 'relative' }}>
+            {/* Bottom buttons when drawer is closed */}
+            {!showBottomSheet && (
+              <>
+                {/* Floating Add Festival Button */}
+                <button
+                  onClick={() => navigate('/submit-festival')}
+                  title="Add Festival"
+                  style={{
+                    position: 'absolute',
+                    bottom: '32px',
+                    right: '12px',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(40,167,69,0.4)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '28px',
+                    zIndex: 1000,
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  +
+                </button>
+
+                {/* Show list button when bottom sheet is closed */}
+                {visibleFestivals.length > 0 && (
+                  <button
+                    onClick={() => setShowBottomSheet(true)}
+                    style={{
+                      position: 'absolute',
+                      bottom: '32px',
+                      left: '12px',
+                      right: '80px',
+                      backgroundColor: 'white',
+                      border: '1px solid #d0d0d0',
+                      borderRadius: '24px',
+                      padding: '14px 24px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+                      cursor: 'pointer',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: '#0066ff',
+                      zIndex: 1000,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    📍 Show {visibleFestivals.length} festival{visibleFestivals.length !== 1 ? 's' : ''}
+                  </button>
+                )}
+              </>
+            )}
+
             <MapContainer
               key="mobile-map"
               center={[50, 10]}
@@ -608,10 +699,11 @@ const FestivalMap: React.FC = () => {
               {clusteredFestivals.map((cluster, idx) => {
                 const isCluster = cluster.festivals.length > 1;
                 const isHighlighted = cluster.festivals.some(f => f.id === highlightedFestival);
+                const festivalIds = cluster.festivals.map(f => f.id).sort().join('-');
                 
                 return (
                   <Marker
-                    key={isCluster ? `cluster-${idx}` : cluster.festivals[0].id}
+                    key={`mobile-marker-${idx}-${festivalIds}-${isHighlighted ? 'highlighted' : 'normal'}`}
                     position={[cluster.center.lat, cluster.center.lng]}
                     icon={createCustomIcon(isHighlighted, isCluster ? cluster.festivals.length : undefined, isMobile)}
                     eventHandlers={{
@@ -623,14 +715,19 @@ const FestivalMap: React.FC = () => {
             </MapContainer>
           </div>
 
-          {/* Bottom Sheet - Always visible on mobile */}
+          {/* Bottom Sheet - Closable on mobile */}
           {showBottomSheet && selectedClusterFestivals.length > 0 && (
             <FestivalBottomSheet
               festivals={selectedClusterFestivals}
-              onClose={() => setShowBottomSheet(false)}
+              onClose={() => {
+                setShowBottomSheet(false);
+                setIsBottomSheetExpanded(false);
+              }}
               currentIndex={currentBottomSheetIndex}
               onIndexChange={setCurrentBottomSheetIndex}
               isPersistent={true}
+              isExpanded={isBottomSheetExpanded}
+              onToggleExpand={() => setIsBottomSheetExpanded(!isBottomSheetExpanded)}
             />
           )}
 
@@ -645,6 +742,13 @@ const FestivalMap: React.FC = () => {
             onDateRangeChange={setDateRange}
             onClearFilters={handleClearFilters}
             festivalCount={filteredFestivals.length}
+          />
+
+          {/* Mobile Profile Drawer */}
+          <MobileProfileDrawer
+            isOpen={showMobileProfile}
+            onClose={() => setShowMobileProfile(false)}
+            onOpenLogin={() => setShowLoginModal(true)}
           />
         </div>
       ) : (
@@ -775,18 +879,6 @@ const FestivalMap: React.FC = () => {
                   🛡️ Admin Panel
                 </button>
               )}
-              
-              <div style={{ 
-                marginTop: '12px',
-                fontSize: '14px',
-                color: '#666'
-              }}>
-                {visibleFestivals.length} festivals visible
-                {visibleFestivals.length !== filteredFestivals.length && (
-                  <span style={{ color: '#999' }}> of {filteredFestivals.length} total</span>
-                )}
-                {festivalsWithoutCoords > 0 && ` · ${festivalsWithoutCoords} without location`}
-              </div>
             </div>
 
             {/* Filters */}
@@ -878,10 +970,11 @@ const FestivalMap: React.FC = () => {
               {clusteredFestivals.map((cluster, idx) => {
                 const isCluster = cluster.festivals.length > 1;
                 const isHighlighted = cluster.festivals.some(f => f.id === highlightedFestival);
+                const festivalIds = cluster.festivals.map(f => f.id).sort().join('-');
                 
                 return (
                   <Marker
-                    key={`marker-${idx}-${cluster.festivals.map(f => f.id).join('-')}`}
+                    key={`marker-${idx}-${festivalIds}-${isHighlighted ? 'highlighted' : 'normal'}`}
                     position={[cluster.center.lat, cluster.center.lng]}
                     icon={createCustomIcon(isHighlighted, isCluster ? cluster.festivals.length : undefined, isMobile)}
                     eventHandlers={{

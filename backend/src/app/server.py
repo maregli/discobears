@@ -409,6 +409,7 @@ def geocode_single_festival(festival_id):
     """
     Geocode a single festival by ID
     Useful for user-submitted festivals after admin approval
+    Works with both legacy 'venue' field and new structured address fields
     """
     try:
         print(f"\n{'=' * 60}")
@@ -434,12 +435,48 @@ def geocode_single_festival(festival_id):
                 'coordinates': festival['coordinates']
             })
         
-        # Geocode the venue
-        print(f"📍 Geocoding venue: {festival.get('venue', 'Unknown')}")
+        # Build address string from structured fields or use legacy venue field
+        address_parts = []
+        
+        # Try structured address first
+        if festival.get('city') or festival.get('postal_code'):
+            print("📍 Using structured address fields")
+            
+            # Street + number
+            if festival.get('street'):
+                street = festival['street']
+                if festival.get('street_number'):
+                    street += f" {festival['street_number']}"
+                address_parts.append(street)
+            
+            # Postal code + City
+            if festival.get('postal_code'):
+                address_parts.append(festival['postal_code'])
+            if festival.get('city'):
+                address_parts.append(festival['city'])
+            if festival.get('country'):
+                address_parts.append(festival['country'])
+            
+            address_string = ', '.join(address_parts)
+            print(f"   Constructed address: {address_string}")
+            
+        # Fallback to legacy venue field
+        elif festival.get('venue'):
+            print("📍 Using legacy venue field")
+            address_string = festival['venue']
+            print(f"   Venue: {address_string}")
+        else:
+            print("✗ No address information found")
+            return jsonify({
+                'error': 'No address information',
+                'message': 'Festival has no venue or address data'
+            }), 400
+        
+        # Geocode the address
         print(f"   Region: {festival.get('region', 'Unknown')}")
         
         geocode_result = geocoding_service.geocode_venue(
-            festival.get('venue', ''),
+            address_string,
             festival.get('region', '')
         )
         
@@ -489,11 +526,11 @@ def geocode_single_festival(festival_id):
                 'updated_at': datetime.utcnow()
             })
             
-            print(f"✗ Geocoding failed for {festival.get('venue')}")
+            print(f"✗ Geocoding failed for {address_string}")
             
             return jsonify({
                 'error': 'Geocoding failed',
-                'message': 'Could not find coordinates for this venue'
+                'message': 'Could not find coordinates for this address'
             }), 400
         
     except Exception as e:

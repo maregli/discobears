@@ -9,6 +9,8 @@ interface FestivalBottomSheetProps {
   currentIndex?: number;
   onIndexChange?: (index: number) => void;
   isPersistent?: boolean; // If true, no close button/backdrop
+  isExpanded?: boolean; // If true, show expanded view
+  onToggleExpand?: () => void; // Toggle between collapsed and expanded
 }
 
 const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
@@ -17,12 +19,16 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   initialIndex = 0,
   currentIndex: controlledIndex,
   onIndexChange,
-  isPersistent = false
+  isPersistent = false,
+  isExpanded = false,
+  onToggleExpand
 }) => {
   const navigate = useNavigate();
   const [internalIndex, setInternalIndex] = useState(initialIndex);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [touchStartY, setTouchStartY] = useState(0);
+  const [touchEndY, setTouchEndY] = useState(0);
 
   // Use controlled index if provided, otherwise use internal state
   const currentIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
@@ -40,21 +46,36 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
+    setTouchStartY(e.targetTouches[0].clientY);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX);
+    setTouchEndY(e.targetTouches[0].clientY);
   };
 
   const handleTouchEnd = () => {
-    if (touchStart - touchEnd > 50) {
+    const horizontalSwipe = touchStart - touchEnd;
+    const verticalSwipe = touchStartY - touchEndY;
+    
+    // Check if it's a vertical swipe down (to close)
+    if (verticalSwipe < -80 && Math.abs(horizontalSwipe) < 50) {
+      // Swipe down - close the drawer
+      if (isPersistent) {
+        onClose();
+      }
+      return;
+    }
+    
+    // Horizontal swipes for navigation
+    if (horizontalSwipe > 50) {
       // Swipe left - next festival
       if (currentIndex < festivals.length - 1) {
         setCurrentIndex(currentIndex + 1);
       }
     }
 
-    if (touchStart - touchEnd < -50) {
+    if (horizontalSwipe < -50) {
       // Swipe right - previous festival
       if (currentIndex > 0) {
         setCurrentIndex(currentIndex - 1);
@@ -86,99 +107,86 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
 
   return (
     <>
-      {/* Backdrop for closing - only if not persistent */}
-      {!isPersistent && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 998,
-            backgroundColor: 'transparent'
-          }}
-          onClick={onClose}
-        />
-      )}
+      {/* Backdrop for closing - always shown to capture map clicks */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 998,
+          backgroundColor: 'transparent'
+        }}
+        onClick={onClose}
+      />
 
       {/* Bottom Sheet */}
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: '32px',
+          left: '12px',
+          right: '12px',
           backgroundColor: 'white',
-          borderTopLeftRadius: '20px',
-          borderTopRightRadius: '20px',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+          borderRadius: '20px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           zIndex: 999,
           animation: 'slideUpSheet 0.3s ease',
-          maxHeight: isPersistent ? '35vh' : '40vh',
+          height: isExpanded ? '50vh' : 'auto',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          transition: 'height 0.3s ease'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Handle bar - only if not persistent */}
-        {!isPersistent && (
-          <div style={{
+        {/* Handle bar - tap to expand/collapse */}
+        <div 
+          style={{
             display: 'flex',
             justifyContent: 'center',
-            padding: '12px 0 8px 0'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '4px',
-              backgroundColor: '#d0d0d0',
-              borderRadius: '2px'
-            }} />
-          </div>
-        )}
+            alignItems: 'center',
+            padding: '12px 0 8px 0',
+            cursor: 'pointer',
+            position: 'relative'
+          }}
+          onClick={onToggleExpand}
+        >
+          <div style={{
+            width: '40px',
+            height: '4px',
+            backgroundColor: '#d0d0d0',
+            borderRadius: '2px'
+          }} />
+        </div>
 
         {/* Content */}
         <div style={{
-          padding: '0 20px 20px 20px',
-          flex: 1,
-          overflowY: 'auto'
+          padding: '12px 20px 20px 20px'
         }}>
-          {/* Festival Image Placeholder */}
-          <div style={{
-            width: '100%',
-            height: '120px',
-            backgroundColor: '#f0f0f0',
-            borderRadius: '12px',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '48px',
-            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            fontWeight: 'bold'
-          }}>
-            🎵
-          </div>
-
           {/* Festival Info */}
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: '8px'
+              marginBottom: '12px'
             }}>
-              <h3 style={{
-                margin: 0,
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#1a1a1a',
-                flex: 1,
-                lineHeight: '1.3'
-              }}>
+              <h3 
+                onClick={handleViewDetails}
+                style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#0066ff',
+                  flex: 1,
+                  lineHeight: '1.3',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
                 {festival.name}
               </h3>
               {festival.rating_overall_count && festival.rating_overall_count > 0 && (
@@ -198,120 +206,64 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
               )}
             </div>
 
-            {festival.rating_overall_count && festival.rating_overall_count > 0 && (
-              <div style={{
-                fontSize: '13px',
-                color: '#666',
-                marginBottom: '8px'
-              }}>
-                ⭐ Based on {festival.rating_overall_count} {festival.rating_overall_count === 1 ? 'review' : 'reviews'}
-              </div>
-            )}
-
             {/* Location */}
             <div style={{
-              fontSize: '14px',
+              fontSize: '15px',
               color: '#666',
-              marginBottom: '4px'
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}>
-              📍 {festival.parsed_city || festival.region}
+              <span>📍</span>
+              <span>{festival.parsed_city || festival.region}</span>
             </div>
 
             {/* Date */}
             <div style={{
-              fontSize: '14px',
+              fontSize: '15px',
               color: '#666',
-              marginBottom: '8px'
-            }}>
-              📅 {festival.dates}
-            </div>
-
-            {/* Genres */}
-            <div style={{
               display: 'flex',
-              flexWrap: 'wrap',
-              gap: '6px',
-              marginBottom: '12px'
+              alignItems: 'center',
+              gap: '6px'
             }}>
-              {festival.genres.slice(0, 3).map((genre, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    backgroundColor: '#f0f0f0',
-                    color: '#666',
-                    padding: '4px 10px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}
-                >
-                  {genre}
-                </span>
-              ))}
-              {festival.genres.length > 3 && (
-                <span style={{
-                  color: '#0066ff',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  padding: '4px 0'
-                }}>
-                  +{festival.genres.length - 3} more
-                </span>
-              )}
+              <span>📅</span>
+              <span>{festival.dates}</span>
             </div>
           </div>
 
-          {/* Navigation dots */}
+          {/* Navigation dots and counter */}
           {festivals.length > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '6px',
-              marginBottom: '12px'
-            }}>
-              {festivals.map((_, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    width: idx === currentIndex ? '20px' : '6px',
-                    height: '6px',
-                    backgroundColor: idx === currentIndex ? '#0066ff' : '#d0d0d0',
-                    borderRadius: '3px',
-                    transition: 'all 0.3s ease'
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* View Details Button */}
-          <button
-            onClick={handleViewDetails}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: '#0066ff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginBottom: '8px'
-            }}
-          >
-            See availability
-          </button>
-
-          {/* Counter text */}
-          {festivals.length > 1 && (
-            <div style={{
-              textAlign: 'center',
-              fontSize: '13px',
-              color: '#888'
-            }}>
-              {currentIndex + 1} of {festivals.length} festivals in this area
-            </div>
+            <>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '6px',
+                marginBottom: '8px'
+              }}>
+                {festivals.map((_, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: idx === currentIndex ? '20px' : '6px',
+                      height: '6px',
+                      backgroundColor: idx === currentIndex ? '#0066ff' : '#d0d0d0',
+                      borderRadius: '3px',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Counter text */}
+              <div style={{
+                textAlign: 'center',
+                fontSize: '13px',
+                color: '#888'
+              }}>
+                {currentIndex + 1} of {festivals.length} festivals in this area
+              </div>
+            </>
           )}
         </div>
 

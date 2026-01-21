@@ -15,6 +15,16 @@ const AdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [festivals, setFestivals] = useState<Festival[]>([]);
   const [selectedTab, setSelectedTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [geocodingStatus, setGeocodingStatus] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
+  const [manualCoordinates, setManualCoordinates] = useState<Record<string, { lat: string; lng: string }>>({});
+  const [editedAddresses, setEditedAddresses] = useState<Record<string, {
+    street?: string;
+    street_number?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+  }>>({});
+  const [savingAddress, setSavingAddress] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -113,6 +123,125 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleSaveAddress = async (festivalId: string) => {
+    const editedData = editedAddresses[festivalId];
+    if (!editedData) {
+      alert('No changes to save');
+      return;
+    }
+
+    // Validate required fields
+    if (!editedData.city || !editedData.country) {
+      alert('City and Country are required fields');
+      return;
+    }
+
+    setSavingAddress(prev => ({ ...prev, [festivalId]: true }));
+
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('firebaseServices/firebaseConfig');
+      
+      const festivalRef = doc(db, 'festivals', festivalId);
+      await updateDoc(festivalRef, {
+        street: editedData.street || null,
+        street_number: editedData.street_number || null,
+        city: editedData.city,
+        postal_code: editedData.postal_code || null,
+        country: editedData.country
+      });
+
+      alert('✓ Address saved successfully!');
+      // Clear edited state for this festival
+      setEditedAddresses(prev => {
+        const newState = { ...prev };
+        delete newState[festivalId];
+        return newState;
+      });
+      loadFestivals(selectedTab);
+    } catch (error) {
+      alert('Failed to save address: ' + (error as Error).message);
+    } finally {
+      setSavingAddress(prev => ({ ...prev, [festivalId]: false }));
+    }
+  };
+
+  const handleTestGeocode = async (festivalId: string) => {
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001';
+    
+    // First save any address changes before geocoding
+    if (editedAddresses[festivalId]) {
+      await handleSaveAddress(festivalId);
+    }
+    
+    setGeocodingStatus(prev => ({ ...prev, [festivalId]: 'loading' }));
+    
+    try {
+      const response = await fetch(`${backendUrl}/api/geocode-festival/${festivalId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setGeocodingStatus(prev => ({ ...prev, [festivalId]: 'success' }));
+        alert(`✓ Geocoding successful!\nCoordinates: ${data.coordinates.lat}, ${data.coordinates.lng}${data.parsed_city ? `\nCity: ${data.parsed_city}` : ''}${data.parsed_country ? `\nCountry: ${data.parsed_country}` : ''}`);
+        loadFestivals(selectedTab);
+      } else {
+        setGeocodingStatus(prev => ({ ...prev, [festivalId]: 'error' }));
+        alert(`✗ Geocoding failed: ${data.error || data.message || 'Unknown error'}\n\nTry editing the location and test again, or enter coordinates manually.`);
+      }
+    } catch (error) {
+      setGeocodingStatus(prev => ({ ...prev, [festivalId]: 'error' }));
+      alert('Failed to geocode: ' + (error as Error).message);
+    }
+  };
+
+  const handleSaveManualCoordinates = async (festivalId: string) => {
+    const coords = manualCoordinates[festivalId];
+    if (!coords || !coords.lat || !coords.lng) {
+      alert('Please enter both latitude and longitude');
+      return;
+    }
+
+    const lat = parseFloat(coords.lat);
+    const lng = parseFloat(coords.lng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      alert('Invalid coordinates. Please enter valid numbers.');
+      return;
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      alert('Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.');
+      return;
+    }
+
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('firebaseServices/firebaseConfig');
+      
+      const festivalRef = doc(db, 'festivals', festivalId);
+      await updateDoc(festivalRef, {
+        coordinates: {
+          lat,
+          lng
+        },
+        geocoding_needed: false,
+        geocoding_failed: false
+      });
+
+      alert('✓ Coordinates saved successfully!');
+      setManualCoordinates(prev => ({ ...prev, [festivalId]: { lat: '', lng: '' } }));
+      loadFestivals(selectedTab);
+    } catch (error) {
+      alert('Failed to save coordinates: ' + (error as Error).message);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadFestivals(selectedTab);
@@ -129,9 +258,11 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div style={{ 
-      minHeight: '100vh', 
+      minHeight: '100vh',
+      height: 'auto',
       backgroundColor: '#f7f7f7',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      overflowY: 'auto'
     }}>
       {/* Header */}
       <div style={{ 
@@ -255,10 +386,6 @@ const AdminPanel: React.FC = () => {
                   </a>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Location</div>
-                  <div style={{ fontSize: '14px', fontWeight: '500' }}>{festival.venue}</div>
-                </div>
-                <div>
                   <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Dates</div>
                   <div style={{ fontSize: '14px', fontWeight: '500' }}>
                     {festival.dates || 'Not specified'}
@@ -268,6 +395,309 @@ const AdminPanel: React.FC = () => {
                   <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Venue Type</div>
                   <div style={{ fontSize: '14px', fontWeight: '500', textTransform: 'capitalize' }}>
                     {festival.venue_type}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
+                    Address Summary
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: '500', lineHeight: '1.4' }}>
+                    {[
+                      festival.street && festival.street_number ? `${festival.street} ${festival.street_number}` : festival.street,
+                      festival.postal_code,
+                      festival.city,
+                      festival.country
+                    ].filter(Boolean).join(', ') || <span style={{ color: '#888', fontStyle: 'italic' }}>No address data</span>}
+                  </div>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
+                    Coordinates
+                    {festival.coordinates && (
+                      <span style={{ marginLeft: '8px', color: '#28a745', fontWeight: '600' }}>✓ Set</span>
+                    )}
+                    {!festival.coordinates && (
+                      <span style={{ marginLeft: '8px', color: '#dc3545', fontWeight: '600' }}>✗ Missing</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                    {festival.coordinates 
+                      ? `${festival.coordinates.lat.toFixed(6)}, ${festival.coordinates.lng.toFixed(6)}`
+                      : 'Not set - use geocoding or enter manually below'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Testing Section */}
+              <div style={{ 
+                backgroundColor: '#f8f9fa',
+                padding: '16px',
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
+                  📍 Location & Geocoding
+                </div>
+                
+                {/* Editable Address Fields */}
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block' }}>
+                        Street
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAddresses[festival.id]?.street ?? festival.street ?? ''}
+                        onChange={(e) => setEditedAddresses(prev => ({
+                          ...prev,
+                          [festival.id]: {
+                            ...prev[festival.id],
+                            street: e.target.value,
+                            city: prev[festival.id]?.city ?? festival.city,
+                            country: prev[festival.id]?.country ?? festival.country,
+                            street_number: prev[festival.id]?.street_number ?? festival.street_number,
+                            postal_code: prev[festival.id]?.postal_code ?? festival.postal_code
+                          }
+                        }))}
+                        placeholder="e.g., Am Flugplatz"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block' }}>
+                        Number
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAddresses[festival.id]?.street_number ?? festival.street_number ?? ''}
+                        onChange={(e) => setEditedAddresses(prev => ({
+                          ...prev,
+                          [festival.id]: {
+                            ...prev[festival.id],
+                            street_number: e.target.value,
+                            city: prev[festival.id]?.city ?? festival.city,
+                            country: prev[festival.id]?.country ?? festival.country,
+                            street: prev[festival.id]?.street ?? festival.street,
+                            postal_code: prev[festival.id]?.postal_code ?? festival.postal_code
+                          }
+                        }))}
+                        placeholder="e.g., 1"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block' }}>
+                        City <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAddresses[festival.id]?.city ?? festival.city ?? ''}
+                        onChange={(e) => setEditedAddresses(prev => ({
+                          ...prev,
+                          [festival.id]: {
+                            ...prev[festival.id],
+                            city: e.target.value,
+                            country: prev[festival.id]?.country ?? festival.country,
+                            street: prev[festival.id]?.street ?? festival.street,
+                            street_number: prev[festival.id]?.street_number ?? festival.street_number,
+                            postal_code: prev[festival.id]?.postal_code ?? festival.postal_code
+                          }
+                        }))}
+                        placeholder="e.g., Berlin"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block' }}>
+                        Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAddresses[festival.id]?.postal_code ?? festival.postal_code ?? ''}
+                        onChange={(e) => setEditedAddresses(prev => ({
+                          ...prev,
+                          [festival.id]: {
+                            ...prev[festival.id],
+                            postal_code: e.target.value,
+                            city: prev[festival.id]?.city ?? festival.city,
+                            country: prev[festival.id]?.country ?? festival.country,
+                            street: prev[festival.id]?.street ?? festival.street,
+                            street_number: prev[festival.id]?.street_number ?? festival.street_number
+                          }
+                        }))}
+                        placeholder="e.g., 10115"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block' }}>
+                      Country <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editedAddresses[festival.id]?.country ?? festival.country ?? ''}
+                      onChange={(e) => setEditedAddresses(prev => ({
+                        ...prev,
+                        [festival.id]: {
+                          ...prev[festival.id],
+                          country: e.target.value,
+                          city: prev[festival.id]?.city ?? festival.city,
+                          street: prev[festival.id]?.street ?? festival.street,
+                          street_number: prev[festival.id]?.street_number ?? festival.street_number,
+                          postal_code: prev[festival.id]?.postal_code ?? festival.postal_code
+                        }
+                      }))}
+                      placeholder="e.g., Germany or DE"
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <button
+                    onClick={() => handleSaveAddress(festival.id)}
+                    disabled={!editedAddresses[festival.id] || savingAddress[festival.id]}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      backgroundColor: editedAddresses[festival.id] ? '#28a745' : '#e0e0e0',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: editedAddresses[festival.id] && !savingAddress[festival.id] ? 'pointer' : 'not-allowed',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      opacity: savingAddress[festival.id] ? 0.6 : 1
+                    }}
+                  >
+                    {savingAddress[festival.id] ? '💾 Saving...' : '💾 Save Address'}
+                  </button>
+                  <button
+                    onClick={() => handleTestGeocode(festival.id)}
+                    disabled={geocodingStatus[festival.id] === 'loading'}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      backgroundColor: geocodingStatus[festival.id] === 'success' ? '#28a745' : 
+                                     geocodingStatus[festival.id] === 'error' ? '#dc3545' : 
+                                     '#0066ff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: geocodingStatus[festival.id] === 'loading' ? 'not-allowed' : 'pointer',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      opacity: geocodingStatus[festival.id] === 'loading' ? 0.6 : 1
+                    }}
+                  >
+                    {geocodingStatus[festival.id] === 'loading' ? '⏳ Geocoding...' : 
+                     geocodingStatus[festival.id] === 'success' ? '✓ Found Coords' :
+                     geocodingStatus[festival.id] === 'error' ? '✗ Failed' :
+                     '🔍 Test Geocode'}
+                  </button>
+                </div>
+
+                {/* Manual Coordinates Input */}
+                <div style={{ 
+                  borderTop: '1px solid #e0e0e0',
+                  paddingTop: '12px'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px', fontWeight: '600' }}>
+                    Manual Coordinates (if geocoding fails)
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="Latitude (e.g., 52.5200)"
+                      value={manualCoordinates[festival.id]?.lat || ''}
+                      onChange={(e) => setManualCoordinates(prev => ({ 
+                        ...prev, 
+                        [festival.id]: { ...prev[festival.id], lat: e.target.value }
+                      }))}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Longitude (e.g., 13.4050)"
+                      value={manualCoordinates[festival.id]?.lng || ''}
+                      onChange={(e) => setManualCoordinates(prev => ({ 
+                        ...prev, 
+                        [festival.id]: { ...prev[festival.id], lng: e.target.value }
+                      }))}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <button
+                      onClick={() => handleSaveManualCoordinates(festival.id)}
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '12px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      💾 Save
+                    </button>
                   </div>
                 </div>
               </div>

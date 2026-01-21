@@ -8,7 +8,12 @@ interface FestivalFormData {
   external_link: string;
   dates: string;
   duration: string;
-  venue: string;
+  // Structured address fields
+  street: string;
+  street_number: string;
+  city: string;
+  postal_code: string;
+  country: string;
   venue_type: 'indoor' | 'outdoor';
   region: string;
   genres: string[];
@@ -25,7 +30,11 @@ const AddFestivalForm: React.FC = () => {
     external_link: '',
     dates: '',
     duration: '',
-    venue: '',
+    street: '',
+    street_number: '',
+    city: '',
+    postal_code: '',
+    country: '',
     venue_type: 'outdoor',
     region: '',
     genres: [],
@@ -49,7 +58,8 @@ const AddFestivalForm: React.FC = () => {
     // Required fields
     if (!formData.name.trim()) newErrors.name = 'Festival name is required';
     if (!formData.external_link.trim()) newErrors.external_link = 'Festival URL is required';
-    if (!formData.venue.trim()) newErrors.venue = 'Location is required';
+    if (!formData.city.trim()) newErrors.city = 'City is required';
+    if (!formData.country.trim()) newErrors.country = 'Country is required';
     if (!formData.dates.trim()) newErrors.dates = 'Dates are required';
     if (!formData.price.trim()) newErrors.price = 'Price is required';
     if (formData.genres.length === 0) newErrors.genres = 'At least one genre is required';
@@ -213,39 +223,185 @@ const AddFestivalForm: React.FC = () => {
               )}
             </div>
 
-            {/* Location */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'block',
-                fontSize: '14px',
+            {/* Location Section */}
+            <div style={{ 
+              marginBottom: '24px',
+              padding: '16px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 16px 0',
+                fontSize: '16px',
                 fontWeight: '600',
-                marginBottom: '8px',
                 color: '#1a1a1a'
               }}>
-                Location / Venue <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.venue}
-                onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
-                placeholder="e.g., Boom, Belgium or Festival Grounds, Amsterdam, Netherlands"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: `1px solid ${errors.venue ? '#e74c3c' : '#d0d0d0'}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                Include city and country for accurate map placement
-              </div>
-              {errors.venue && (
-                <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px' }}>
-                  {errors.venue}
+                📍 Location
+              </h3>
+
+              {/* City and Country Row */}
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px',
+                marginBottom: '12px'
+              }}>
+                {/* City */}
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px',
+                    color: '#1a1a1a'
+                  }}>
+                    City <span style={{ color: '#e74c3c' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="e.g., Amsterdam"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: `1px solid ${errors.city ? '#e74c3c' : '#d0d0d0'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {errors.city && (
+                    <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px' }}>
+                      {errors.city}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Country */}
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px',
+                    color: '#1a1a1a'
+                  }}>
+                    Country <span style={{ color: '#e74c3c' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    placeholder="e.g., Netherlands"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: `1px solid ${errors.country ? '#e74c3c' : '#d0d0d0'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {errors.country && (
+                    <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px' }}>
+                      {errors.country}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Street and Number Row */}
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '3fr 1fr',
+                gap: '12px',
+                marginBottom: '12px'
+              }}>
+                {/* Street */}
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    marginBottom: '8px',
+                    color: '#666'
+                  }}>
+                    Street (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.street}
+                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                    placeholder="e.g., Festival Grounds"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #d0d0d0',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Number */}
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    marginBottom: '8px',
+                    color: '#666'
+                  }}>
+                    Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.street_number}
+                    onChange={(e) => setFormData({ ...formData, street_number: e.target.value })}
+                    placeholder="e.g., 42"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #d0d0d0',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Postal Code */}
+              <div>
+                <label style={{ 
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  marginBottom: '8px',
+                  color: '#666'
+                }}>
+                  Postal Code (recommended for accurate geocoding)
+                </label>
+                <input
+                  type="text"
+                  value={formData.postal_code}
+                  onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                  placeholder="e.g., 1012 JS"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '1px solid #d0d0d0',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                  Postal code helps us find the exact location on the map
+                </div>
+              </div>
             </div>
 
             {/* Genres */}
