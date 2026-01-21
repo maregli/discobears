@@ -13,6 +13,7 @@ import MobileProfileDrawer from './MobileProfileDrawer';
 import FestivalBottomSheet from './FestivalBottomSheet';
 import { useAuth } from 'contexts/AuthContext';
 import { useIsMobile } from 'hooks/useIsMobile';
+import { useViewportHeight } from 'hooks/useViewportHeight';
 
 // Custom marker icon - modern style with enhanced hover effect
 const createCustomIcon = (isHighlighted: boolean, count?: number, isMobile: boolean = false) => {
@@ -183,6 +184,7 @@ const FestivalMap: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
+  const viewportHeight = useViewportHeight();
   const [festivals, setFestivals] = useState<Festival[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -464,7 +466,7 @@ const FestivalMap: React.FC = () => {
   return (
     <div style={{ 
       width: '100vw', 
-      height: '100vh', 
+      height: isMobile ? `${viewportHeight}px` : '100vh',
       display: 'flex',
       overflow: 'hidden',
       position: 'fixed',
@@ -476,7 +478,7 @@ const FestivalMap: React.FC = () => {
       {isMobile ? (
         <div style={{ 
           width: '100vw', 
-          height: '100vh', 
+          height: `${viewportHeight}px`,
           display: 'flex', 
           flexDirection: 'column'
         }}>
