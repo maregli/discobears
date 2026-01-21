@@ -146,6 +146,18 @@ code {
     padding: 0;
   }
 
+  /* Fix for mobile viewport height issues with browser UI */
+  html {
+    /* Fallback for browsers that don't support dvh */
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    /* Fallback for browsers that don't support dvh */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
   /* Hide zoom controls on mobile */
   .leaflet-control-zoom {
     display: none !important;

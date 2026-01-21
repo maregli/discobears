@@ -119,7 +119,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: '32px',
+          bottom: 'calc(16px + env(safe-area-inset-bottom, 16px))',
           left: '12px',
           right: '12px',
           backgroundColor: 'white',

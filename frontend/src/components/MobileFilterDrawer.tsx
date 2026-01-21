@@ -71,7 +71,7 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
+        height: '100dvh',
         backgroundColor: 'white',
         zIndex: 9999,
         display: 'flex',
@@ -348,6 +348,7 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
           left: 0,
           right: 0,
           padding: '16px 20px',
+          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
           backgroundColor: 'white',
           borderTop: '1px solid #e0e0e0',
           boxShadow: '0 -2px 10px rgba(0,0,0,0.1)'
