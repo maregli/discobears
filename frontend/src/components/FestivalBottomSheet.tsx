@@ -99,12 +99,6 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
     navigate(`/festival/${festival.id}`);
   };
 
-  // Parse price from festival data (placeholder - you might want to add actual price field)
-  const getDisplayPrice = () => {
-    // For now, return "Free" or extract from description if available
-    return 'View Details';
-  };
-
   return (
     <>
       {/* Backdrop for closing - always shown to capture map clicks */}

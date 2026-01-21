@@ -11,10 +11,8 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  Timestamp,
   query,
   orderBy,
-  where,
   serverTimestamp
 } from 'firebase/firestore';
 

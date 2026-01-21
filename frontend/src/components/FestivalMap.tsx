@@ -187,7 +187,6 @@ const FestivalMap: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [highlightedFestival, setHighlightedFestival] = useState<string | null>(null);
-  const [selectedFestival, setSelectedFestival] = useState<Festival | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [currentZoom, setCurrentZoom] = useState(5);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -348,7 +347,7 @@ const FestivalMap: React.FC = () => {
         setCurrentBottomSheetIndex(0);
       }
     }
-  }, [isMobile, visibleFestivals.length, showBottomSheet]);
+  }, [isMobile, visibleFestivals, showBottomSheet]);
 
   // Highlight marker when bottom sheet index changes on mobile
   useEffect(() => {
@@ -364,7 +363,6 @@ const FestivalMap: React.FC = () => {
   }, [filteredFestivals, currentZoom]);
 
   const handleFestivalClick = (festival: Festival) => {
-    setSelectedFestival(festival);
     setHighlightedFestival(festival.id);
     
     // Zoom to festival without triggering state loop
