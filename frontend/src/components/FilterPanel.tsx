@@ -6,6 +6,8 @@ interface FilterPanelProps {
   onGenreChange: (genres: string[]) => void;
   dateRange: { year: number; startMonth: number; endMonth: number };
   onDateRangeChange: (range: { year: number; startMonth: number; endMonth: number }) => void;
+  minRating: number;
+  onMinRatingChange: (rating: number) => void;
   onClearFilters: () => void;
 }
 
@@ -15,10 +17,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   onGenreChange,
   dateRange,
   onDateRangeChange,
+  minRating,
+  onMinRatingChange,
   onClearFilters
 }) => {
   const [isGenreExpanded, setIsGenreExpanded] = useState(false);
   const [isDateExpanded, setIsDateExpanded] = useState(false);
+  const [isRatingExpanded, setIsRatingExpanded] = useState(false);
 
   const handleGenreToggle = (genre: string) => {
     if (selectedGenres.includes(genre)) {
@@ -30,7 +35,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const hasActiveFilters = selectedGenres.length > 0 || 
     dateRange.startMonth !== 1 || 
-    dateRange.endMonth !== 12;
+    dateRange.endMonth !== 12 ||
+    minRating > 0;
 
   const monthNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -179,6 +185,84 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 <span style={{ color: '#1a1a1a' }}>{genre}</span>
               </label>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Rating Filter */}
+      <div style={{ borderBottom: '1px solid #e0e0e0' }}>
+        <button
+          onClick={() => setIsRatingExpanded(!isRatingExpanded)}
+          style={{
+            width: '100%',
+            padding: '16px',
+            background: 'none',
+            border: 'none',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f7f7f7'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          <span>Minimum Rating {minRating > 0 && `(${minRating}+)`}</span>
+          <span style={{ 
+            fontSize: '18px',
+            transition: 'transform 0.2s',
+            transform: isRatingExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>
+            ▼
+          </span>
+        </button>
+        
+        {isRatingExpanded && (
+          <div style={{ padding: '0 16px 16px 16px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '13px',
+              color: '#1a1a1a',
+              marginBottom: '12px',
+              fontWeight: '600'
+            }}>
+              <span>Any</span>
+              <span>{minRating > 0 ? `${minRating}+ ★` : 'No minimum'}</span>
+            </div>
+            
+            {/* Rating Slider */}
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.5"
+              value={minRating}
+              onChange={(e) => onMinRatingChange(parseFloat(e.target.value))}
+              style={{
+                width: '100%',
+                cursor: 'pointer'
+              }}
+            />
+            
+            {/* Rating tick marks */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '11px',
+              color: '#999',
+              marginTop: '8px',
+              paddingLeft: '2px',
+              paddingRight: '2px'
+            }}>
+              {[0, 1, 2, 3, 4, 5].map(rating => (
+                <span key={rating} style={{ textAlign: 'center' }}>
+                  {rating === 0 ? 'Any' : `${rating}★`}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

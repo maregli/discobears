@@ -368,6 +368,51 @@ export const subscribeToAttendance = (
   return unsubscribe;
 };
 
+// Get attendance counts for a specific festival
+export const getAttendanceCounts = async (
+  festivalId: string
+): Promise<{ attendingCount: number; temptedCount: number }> => {
+  try {
+    const attendanceRef = collection(db, 'festivals', festivalId, 'attendance');
+    const snapshot = await getDocs(attendanceRef);
+    
+    let attendingCount = 0;
+    let temptedCount = 0;
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.status === 'attending') attendingCount++;
+      else if (data.status === 'tempted') temptedCount++;
+    });
+    
+    return { attendingCount, temptedCount };
+  } catch (error) {
+    console.error('Error getting attendance counts:', error);
+    return { attendingCount: 0, temptedCount: 0 };
+  }
+};
+
+// Get attendance counts for all festivals
+export const getAllAttendanceCounts = async (
+  festivalIds: string[]
+): Promise<Record<string, { attendingCount: number; temptedCount: number }>> => {
+  try {
+    const counts: Record<string, { attendingCount: number; temptedCount: number }> = {};
+    
+    // Fetch attendance for each festival
+    await Promise.all(
+      festivalIds.map(async (festivalId) => {
+        counts[festivalId] = await getAttendanceCounts(festivalId);
+      })
+    );
+    
+    return counts;
+  } catch (error) {
+    console.error('Error getting all attendance counts:', error);
+    return {};
+  }
+};
+
 // Admin functions
 export const isUserAdmin = async (userEmail: string): Promise<boolean> => {
   try {

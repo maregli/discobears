@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaf
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { isUserAdmin } from 'firebaseServices/firestore';
+import { isUserAdmin, getAllAttendanceCounts } from 'firebaseServices/firestore';
 import { Festival } from 'types/festival';
 import FestivalCard from './FestivalCard';
 import FilterPanel from './FilterPanel';
@@ -226,6 +226,9 @@ const FestivalMap: React.FC = () => {
     endMonth: 12 
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [minRating, setMinRating] = useState(0);
+  const [sortBy, setSortBy] = useState('rating-overall');
+  const [attendanceCounts, setAttendanceCounts] = useState<Record<string, { attendingCount: number; temptedCount: number }>>({});
 
   const mapRef = useRef<L.Map | null>(null);
   
@@ -298,6 +301,19 @@ const FestivalMap: React.FC = () => {
     // No need to load separately - it's already on the festival object!
   }, [festivals]);
 
+  // Load attendance counts for all festivals
+  useEffect(() => {
+    const loadAttendanceCounts = async () => {
+      if (festivals.length > 0) {
+        const festivalIds = festivals.map(f => f.id);
+        const counts = await getAllAttendanceCounts(festivalIds);
+        setAttendanceCounts(counts);
+      }
+    };
+    
+    loadAttendanceCounts();
+  }, [festivals]);
+
   // Get all unique genres for filter
   const allGenres = useMemo(() => {
     const genreSet = new Set<string>();
@@ -328,6 +344,12 @@ const FestivalMap: React.FC = () => {
       if (selectedGenres.length > 0) {
         const hasMatchingGenre = f.genres.some(g => selectedGenres.includes(g));
         if (!hasMatchingGenre) return false;
+      }
+
+      // Rating filter
+      if (minRating > 0) {
+        const rating = f.rating_overall_average ?? 0;
+        if (rating < minRating) return false;
       }
 
       // Date filter - check if festival falls within selected year and month range
@@ -364,7 +386,7 @@ const FestivalMap: React.FC = () => {
 
       return true;
     });
-  }, [festivals, selectedGenres, dateRange, searchQuery]);
+  }, [festivals, selectedGenres, dateRange, searchQuery, minRating]);
 
   // Filter festivals for SIDEBAR display (only those visible in current map bounds)
   const visibleFestivals = useMemo(() => {
@@ -382,14 +404,42 @@ const FestivalMap: React.FC = () => {
       });
     }
 
-    // Sort by average overall rating (highest first)
-    // Festivals without ratings come last
-    return festivals.sort((a, b) => {
-      const ratingA = a.rating_overall_average ?? -1;
-      const ratingB = b.rating_overall_average ?? -1;
-      return ratingB - ratingA;
+    // Add attendance counts to festivals
+    const festivalsWithAttendance = festivals.map(f => ({
+      ...f,
+      attendingCount: attendanceCounts[f.id]?.attendingCount ?? 0,
+      temptedCount: attendanceCounts[f.id]?.temptedCount ?? 0
+    }));
+
+    // Sort festivals based on selected sort option
+    return festivalsWithAttendance.sort((a, b) => {
+      switch (sortBy) {
+        case 'rating-overall': {
+          const ratingA = a.rating_overall_average ?? -1;
+          const ratingB = b.rating_overall_average ?? -1;
+          return ratingB - ratingA;
+        }
+        case 'rating-lineup': {
+          const ratingA = a.rating_lineup_average ?? -1;
+          const ratingB = b.rating_lineup_average ?? -1;
+          return ratingB - ratingA;
+        }
+        case 'rating-location': {
+          const ratingA = a.rating_location_average ?? -1;
+          const ratingB = b.rating_location_average ?? -1;
+          return ratingB - ratingA;
+        }
+        case 'attendance-going': {
+          return b.attendingCount - a.attendingCount;
+        }
+        case 'attendance-tempted': {
+          return b.temptedCount - a.temptedCount;
+        }
+        default:
+          return 0;
+      }
     });
-  }, [filteredFestivals, mapBounds]);
+  }, [filteredFestivals, mapBounds, attendanceCounts, sortBy]);
 
   // Reset index if it becomes out of bounds (e.g., if visibleFestivals changes while sheet is open)
   useEffect(() => {
@@ -505,6 +555,7 @@ const FestivalMap: React.FC = () => {
     setSelectedGenres([]);
     setDateRange({ year: new Date().getFullYear(), startMonth: 1, endMonth: 12 });
     setSearchQuery('');
+    setMinRating(0);
   };
 
   if (error) {
@@ -829,6 +880,10 @@ const FestivalMap: React.FC = () => {
             onGenreChange={setSelectedGenres}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
+            minRating={minRating}
+            onMinRatingChange={setMinRating}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
             onClearFilters={handleClearFilters}
             festivalCount={filteredFestivals.length}
           />
@@ -978,8 +1033,49 @@ const FestivalMap: React.FC = () => {
                 onGenreChange={setSelectedGenres}
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
+                minRating={minRating}
+                onMinRatingChange={setMinRating}
                 onClearFilters={handleClearFilters}
               />
+            </div>
+
+            {/* Sort By */}
+            <div style={{ padding: '16px', backgroundColor: '#f7f7f7' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0',
+                padding: '16px'
+              }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '13px', 
+                  color: '#666',
+                  marginBottom: '8px',
+                  fontWeight: '600'
+                }}>
+                  Sort By
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #d0d0d0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="rating-overall">Rating: Overall</option>
+                  <option value="rating-lineup">Rating: Lineup</option>
+                  <option value="rating-location">Rating: Location</option>
+                  <option value="attendance-going">Attendance: Going</option>
+                  <option value="attendance-tempted">Attendance: Tempted</option>
+                </select>
+              </div>
             </div>
 
             {/* Festival List */}

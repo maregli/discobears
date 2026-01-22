@@ -9,6 +9,10 @@ interface MobileFilterDrawerProps {
   onGenreChange: (genres: string[]) => void;
   dateRange: { year: number; startMonth: number; endMonth: number };
   onDateRangeChange: (range: { year: number; startMonth: number; endMonth: number }) => void;
+  minRating: number;
+  onMinRatingChange: (rating: number) => void;
+  sortBy: string;
+  onSortByChange: (sortBy: string) => void;
   onClearFilters: () => void;
   festivalCount: number;
 }
@@ -21,12 +25,18 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
   onGenreChange,
   dateRange,
   onDateRangeChange,
+  minRating,
+  onMinRatingChange,
+  sortBy,
+  onSortByChange,
   onClearFilters,
   festivalCount
 }) => {
   const viewportHeight = useViewportHeight();
   const [isGenreExpanded, setIsGenreExpanded] = useState(true);
   const [isDateExpanded, setIsDateExpanded] = useState(true);
+  const [isRatingExpanded, setIsRatingExpanded] = useState(true);
+  const [isSortExpanded, setIsSortExpanded] = useState(true);
 
   const handleGenreToggle = (genre: string) => {
     if (selectedGenres.includes(genre)) {
@@ -38,7 +48,8 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
 
   const hasActiveFilters = selectedGenres.length > 0 || 
     dateRange.startMonth !== 1 || 
-    dateRange.endMonth !== 12;
+    dateRange.endMonth !== 12 ||
+    minRating > 0;
 
   const monthNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -133,6 +144,142 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
           overflowY: 'auto',
           padding: '0 0 80px 0'
         }}>
+          {/* Sort By */}
+          <div style={{ padding: '20px', borderBottom: '1px solid #e0e0e0' }}>
+            <button
+              onClick={() => setIsSortExpanded(!isSortExpanded)}
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '600',
+                padding: '0 0 16px 0',
+                color: '#1a1a1a'
+              }}
+            >
+              <span>Sort By</span>
+              <span style={{ fontSize: '16px' }}>
+                {isSortExpanded ? '▲' : '▼'}
+              </span>
+            </button>
+            
+            {isSortExpanded && (
+              <div>
+                {[
+                  { value: 'rating-overall', label: 'Rating: Overall' },
+                  { value: 'rating-lineup', label: 'Rating: Lineup' },
+                  { value: 'rating-location', label: 'Rating: Location' },
+                  { value: 'attendance-going', label: 'Attendance: Going' },
+                  { value: 'attendance-tempted', label: 'Attendance: Tempted' },
+                ].map(option => (
+                  <label
+                    key={option.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '14px 0',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      borderBottom: '1px solid #f0f0f0'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="sortBy"
+                      checked={sortBy === option.value}
+                      onChange={() => onSortByChange(option.value)}
+                      style={{
+                        marginRight: '14px',
+                        width: '22px',
+                        height: '22px',
+                        cursor: 'pointer',
+                        accentColor: '#0066ff'
+                      }}
+                    />
+                    <span style={{ color: '#1a1a1a' }}>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Rating Filter */}
+          <div style={{ padding: '20px', borderBottom: '1px solid #e0e0e0' }}>
+            <button
+              onClick={() => setIsRatingExpanded(!isRatingExpanded)}
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '600',
+                padding: '0 0 16px 0',
+                color: '#1a1a1a'
+              }}
+            >
+              <span>Minimum Rating {minRating > 0 && `(${minRating}+)`}</span>
+              <span style={{ fontSize: '16px' }}>
+                {isRatingExpanded ? '▲' : '▼'}
+              </span>
+            </button>
+            
+            {isRatingExpanded && (
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '14px',
+                  color: '#1a1a1a',
+                  marginBottom: '16px',
+                  fontWeight: '600'
+                }}>
+                  <span>Any</span>
+                  <span>{minRating > 0 ? `${minRating}+ ★` : 'No minimum'}</span>
+                </div>
+                
+                {/* Rating Slider */}
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={minRating}
+                  onChange={(e) => onMinRatingChange(parseFloat(e.target.value))}
+                  style={{
+                    width: '100%',
+                    cursor: 'pointer'
+                  }}
+                />
+                
+                {/* Rating tick marks */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '11px',
+                  color: '#999',
+                  marginTop: '12px',
+                  paddingLeft: '2px',
+                  paddingRight: '2px'
+                }}>
+                  {[0, 1, 2, 3, 4, 5].map(rating => (
+                    <span key={rating} style={{ textAlign: 'center' }}>
+                      {rating === 0 ? 'Any' : `${rating}★`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Date Filter */}
           <div style={{ padding: '20px', borderBottom: '1px solid #e0e0e0' }}>
             <button
