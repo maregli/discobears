@@ -45,4 +45,7 @@ export interface Festival {
   submittedAt?: Date;
   reviewedAt?: Date;
   rejectionReason?: string;
+  // Attendance counts (computed on the fly)
+  attendingCount?: number;
+  temptedCount?: number;
 }
