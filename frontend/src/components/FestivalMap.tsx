@@ -817,9 +817,8 @@ const FestivalMap: React.FC = () => {
               
               <MapEventHandler 
                 onZoomEnd={setCurrentZoom} 
-                onMoveEnd={(bounds, center) => {
+                onMoveEnd={(bounds) => {
                   setMapBounds(bounds);
-                  setMapCenter([center.lat, center.lng]);
                 }}
                 onMapClick={() => {
                   // Close bottom sheet on map background click
@@ -1149,9 +1148,8 @@ const FestivalMap: React.FC = () => {
               
               <MapEventHandler 
                 onZoomEnd={setCurrentZoom} 
-                onMoveEnd={(bounds, center) => {
+                onMoveEnd={(bounds) => {
                   setMapBounds(bounds);
-                  setMapCenter([center.lat, center.lng]);
                 }}
               />
               
