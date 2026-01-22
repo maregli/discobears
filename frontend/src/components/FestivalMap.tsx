@@ -215,7 +215,6 @@ const FestivalMap: React.FC = () => {
   const showMobileProfile = searchParams.get('profile') === 'true';
   
   // Map state
-  const [mapCenter, setMapCenter] = useState<[number, number]>([50, 10]);
   const [currentZoom, setCurrentZoom] = useState(5);
   
   // Filters
