@@ -103,20 +103,6 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
 
   return (
     <>
-      {/* Backdrop for closing - always shown to capture map clicks */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: `${viewportHeight}px`,
-          zIndex: 998,
-          backgroundColor: 'transparent'
-        }}
-        onClick={onClose}
-      />
-
       {/* Bottom Sheet Carousel */}
       <div
         style={{

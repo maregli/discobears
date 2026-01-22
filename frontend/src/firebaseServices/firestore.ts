@@ -11,6 +11,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   orderBy,
   serverTimestamp
@@ -253,6 +254,115 @@ export const subscribeToComments = (
       createdAt: doc.data().createdAt?.toDate() || new Date()
     }));
     setComments(comments);
+  });
+  
+  return unsubscribe;
+};
+
+// Attendance
+export interface Attendance {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  status: 'attending' | 'tempted';
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export const setAttendance = async (
+  festivalId: string,
+  userId: string,
+  userName: string,
+  userEmail: string,
+  status: 'attending' | 'tempted'
+): Promise<void> => {
+  try {
+    const attendanceRef = doc(db, 'festivals', festivalId, 'attendance', userId);
+    
+    await setDoc(attendanceRef, {
+      userId,
+      userName,
+      userEmail,
+      status,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error setting attendance:', error);
+    throw error;
+  }
+};
+
+export const removeAttendance = async (
+  festivalId: string,
+  userId: string
+): Promise<void> => {
+  try {
+    const attendanceRef = doc(db, 'festivals', festivalId, 'attendance', userId);
+    await setDoc(attendanceRef, {
+      status: null,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error removing attendance:', error);
+    throw error;
+  }
+};
+
+export const getUserAttendance = async (
+  festivalId: string,
+  userId: string
+): Promise<Attendance | null> => {
+  try {
+    const attendanceRef = doc(db, 'festivals', festivalId, 'attendance', userId);
+    const attendanceSnap = await getDoc(attendanceRef);
+    
+    if (attendanceSnap.exists()) {
+      const data = attendanceSnap.data();
+      // If status is null, return null (user removed their attendance)
+      if (!data.status) return null;
+      
+      return {
+        userId: data.userId,
+        userName: data.userName,
+        userEmail: data.userEmail,
+        status: data.status,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate()
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user attendance:', error);
+    return null;
+  }
+};
+
+export const subscribeToAttendance = (
+  festivalId: string,
+  setAttendance: (attendance: Attendance[]) => void
+): (() => void) => {
+  const attendanceRef = collection(db, 'festivals', festivalId, 'attendance');
+  
+  const unsubscribe = onSnapshot(attendanceRef, (snapshot) => {
+    const attendanceList: Attendance[] = [];
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      // Filter out entries where status is null (removed attendance)
+      if (data.status) {
+        attendanceList.push({
+          userId: data.userId,
+          userName: data.userName,
+          userEmail: data.userEmail,
+          status: data.status,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate()
+        });
+      }
+    });
+    
+    setAttendance(attendanceList);
   });
   
   return unsubscribe;

@@ -41,12 +41,55 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const years = Array.from({ length: 5 }, (_, i) => currentYear + i); // Current year + 4 years ahead
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      border: '1px solid #e0e0e0',
-      marginBottom: '16px'
-    }}>
+    <>
+      <style>{`
+        input[type="range"] {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 20px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #0066ff;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          position: relative;
+          z-index: 3;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #0066ff;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          position: relative;
+          z-index: 3;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+          background: transparent;
+        }
+        
+        input[type="range"]::-moz-range-track {
+          background: transparent;
+        }
+      `}</style>
+      
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px solid #e0e0e0',
+        marginBottom: '16px'
+      }}>
       {/* Header */}
       <div style={{
         padding: '16px',
@@ -217,24 +260,45 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between',
-                fontSize: '12px',
-                color: '#888',
-                marginBottom: '8px'
+                fontSize: '13px',
+                color: '#1a1a1a',
+                marginBottom: '12px',
+                fontWeight: '600'
               }}>
                 <span>{monthNames[dateRange.startMonth - 1]}</span>
+                <span>—</span>
                 <span>{monthNames[dateRange.endMonth - 1]}</span>
               </div>
 
-              {/* Start Month Slider */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '12px', 
-                  color: '#888',
-                  marginBottom: '4px'
-                }}>
-                  From: {monthNames[dateRange.startMonth - 1]}
-                </label>
+              {/* Dual-thumb Range Slider */}
+              <div style={{ 
+                position: 'relative', 
+                height: '40px',
+                paddingTop: '8px'
+              }}>
+                {/* Track background */}
+                <div style={{
+                  position: 'absolute',
+                  top: '18px',
+                  left: '0',
+                  right: '0',
+                  height: '4px',
+                  backgroundColor: '#e0e0e0',
+                  borderRadius: '2px'
+                }} />
+                
+                {/* Active track (between thumbs) */}
+                <div style={{
+                  position: 'absolute',
+                  top: '18px',
+                  left: `${((dateRange.startMonth - 1) / 11) * 100}%`,
+                  width: `${((dateRange.endMonth - dateRange.startMonth) / 11) * 100}%`,
+                  height: '4px',
+                  backgroundColor: '#0066ff',
+                  borderRadius: '2px'
+                }} />
+
+                {/* Start thumb */}
                 <input
                   type="range"
                   min="1"
@@ -249,22 +313,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     });
                   }}
                   style={{
+                    position: 'absolute',
                     width: '100%',
+                    top: '8px',
+                    margin: 0,
+                    pointerEvents: 'all',
+                    background: 'transparent',
                     cursor: 'pointer'
                   }}
                 />
-              </div>
 
-              {/* End Month Slider */}
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '12px', 
-                  color: '#888',
-                  marginBottom: '4px'
-                }}>
-                  To: {monthNames[dateRange.endMonth - 1]}
-                </label>
+                {/* End thumb */}
                 <input
                   type="range"
                   min="1"
@@ -279,16 +338,39 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     });
                   }}
                   style={{
+                    position: 'absolute',
                     width: '100%',
+                    top: '8px',
+                    margin: 0,
+                    pointerEvents: 'all',
+                    background: 'transparent',
                     cursor: 'pointer'
                   }}
                 />
+              </div>
+
+              {/* Month tick marks */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '10px',
+                color: '#999',
+                marginTop: '8px',
+                paddingLeft: '2px',
+                paddingRight: '2px'
+              }}>
+                {monthNames.map((month, idx) => (
+                  <span key={idx} style={{ width: '24px', textAlign: 'center' }}>
+                    {month}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
         )}
       </div>
     </div>
+    </>
   );
 };
 

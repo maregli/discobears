@@ -8,9 +8,14 @@ import {
   getFestivalRatings,
   addComment,
   subscribeToComments,
+  setAttendance,
+  removeAttendance,
+  getUserAttendance,
+  subscribeToAttendance,
   Comment,
   Rating,
-  FestivalRatings
+  FestivalRatings,
+  Attendance
 } from 'firebaseServices/firestore';
 import { useAuth } from 'contexts/AuthContext';
 import LoginModal from '../components/LoginModal';
@@ -36,6 +41,8 @@ const FestivalDetailPage: React.FC = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [userAttendance, setUserAttendance] = useState<Attendance | null>(null);
+  const [allAttendance, setAllAttendance] = useState<Attendance[]>([]);
 
   useEffect(() => {
     if (!festivalId) return;
@@ -47,17 +54,26 @@ const FestivalDetailPage: React.FC = () => {
     });
 
     // Subscribe to comments
-    const unsubscribe = subscribeToComments(festivalId, setComments);
+    const unsubscribeComments = subscribeToComments(festivalId, setComments);
+    
+    // Subscribe to attendance
+    const unsubscribeAttendance = subscribeToAttendance(festivalId, setAllAttendance);
 
     // Load ratings
     getFestivalRatings(festivalId).then(setFestivalRatings);
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeComments();
+      unsubscribeAttendance();
+    };
   }, [festivalId]);
 
   useEffect(() => {
     if (user && festivalId) {
       getUserRating(festivalId, user.uid).then(setUserRating);
+      getUserAttendance(festivalId, user.uid).then(setUserAttendance);
+    } else {
+      setUserAttendance(null);
     }
   }, [user, festivalId]);
 
@@ -116,6 +132,35 @@ const FestivalDetailPage: React.FC = () => {
       setCommentText('');
     } catch (error) {
       console.error('Error adding comment:', error);
+    }
+  };
+
+  const handleAttendanceChange = async (status: 'attending' | 'tempted' | null) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    if (!festivalId) return;
+
+    try {
+      if (status === null) {
+        await removeAttendance(festivalId, user.uid);
+        setUserAttendance(null);
+      } else {
+        const userName = user.displayName || user.email || 'Anonymous';
+        await setAttendance(festivalId, user.uid, userName, user.email || '', status);
+        // Optimistically update local state
+        setUserAttendance({
+          userId: user.uid,
+          userName,
+          userEmail: user.email || '',
+          status,
+          createdAt: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error);
     }
   };
 
@@ -209,43 +254,24 @@ const FestivalDetailPage: React.FC = () => {
           ← Back to Map
         </button>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {(festival.source_url || festival.url) && (
-            <a
-              href={festival.source_url || festival.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontWeight: '600'
-              }}
-            >
-              Festival Alarm
-            </a>
-          )}
-          
-          {festival.external_link && (
-            <a
-              href={festival.external_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#0066ff',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontWeight: '600'
-              }}
-            >
-              Official Website →
-            </a>
-          )}
-        </div>
+        {festival.external_link && (
+          <a
+            href={festival.external_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#0066ff',
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            Official Website →
+          </a>
+        )}
       </div>
 
       {/* Content */}
@@ -309,6 +335,261 @@ const FestivalDetailPage: React.FC = () => {
               {festival.venue_formatted || festival.venue}
             </div>
           </div>
+
+          {/* Source Information */}
+          <div style={{ 
+            marginTop: '32px', 
+            paddingTop: '24px', 
+            borderTop: '1px solid #e0e0e0',
+            fontSize: '14px',
+            color: '#666'
+          }}>
+            <div style={{ marginBottom: '4px', fontWeight: '500' }}>Source:</div>
+            {festival.source === 'user-submitted' ? (
+              <div>User Submitted</div>
+            ) : (
+              (festival.source_url || festival.url) ? (
+                <a
+                  href={festival.source_url || festival.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: '#0066ff',
+                    textDecoration: 'none',
+                    fontWeight: '500'
+                  }}
+                >
+                  Festival Alarm →
+                </a>
+              ) : (
+                <div>Scraped</div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Attendance Section */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '32px',
+          marginBottom: '24px'
+        }}>
+          <h2 style={{ margin: '0 0 24px 0', fontSize: '24px', fontWeight: '700' }}>
+            Are you going?
+          </h2>
+
+          {/* Attendance Buttons */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
+            <button
+              onClick={() => handleAttendanceChange(userAttendance?.status === 'attending' ? null : 'attending')}
+              style={{
+                flex: 1,
+                padding: '16px 24px',
+                backgroundColor: userAttendance?.status === 'attending' ? '#0066ff' : 'white',
+                color: userAttendance?.status === 'attending' ? 'white' : '#1a1a1a',
+                border: `2px solid ${userAttendance?.status === 'attending' ? '#0066ff' : '#d0d0d0'}`,
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (userAttendance?.status !== 'attending') {
+                  e.currentTarget.style.borderColor = '#0066ff';
+                  e.currentTarget.style.color = '#0066ff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (userAttendance?.status !== 'attending') {
+                  e.currentTarget.style.borderColor = '#d0d0d0';
+                  e.currentTarget.style.color = '#1a1a1a';
+                }
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>✓</span>
+              Attending
+            </button>
+
+            <button
+              onClick={() => handleAttendanceChange(userAttendance?.status === 'tempted' ? null : 'tempted')}
+              style={{
+                flex: 1,
+                padding: '16px 24px',
+                backgroundColor: userAttendance?.status === 'tempted' ? '#ff9500' : 'white',
+                color: userAttendance?.status === 'tempted' ? 'white' : '#1a1a1a',
+                border: `2px solid ${userAttendance?.status === 'tempted' ? '#ff9500' : '#d0d0d0'}`,
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (userAttendance?.status !== 'tempted') {
+                  e.currentTarget.style.borderColor = '#ff9500';
+                  e.currentTarget.style.color = '#ff9500';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (userAttendance?.status !== 'tempted') {
+                  e.currentTarget.style.borderColor = '#d0d0d0';
+                  e.currentTarget.style.color = '#1a1a1a';
+                }
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>🤔</span>
+              Tempted
+            </button>
+          </div>
+
+          {!user && (
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#f7f7f7',
+              borderRadius: '8px',
+              textAlign: 'center',
+              marginBottom: '32px'
+            }}>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#0066ff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px'
+                }}
+              >
+                Sign In to Respond
+              </button>
+            </div>
+          )}
+
+          {/* Attendees List */}
+          {allAttendance.length > 0 && (
+            <div style={{ 
+              borderTop: '1px solid #e0e0e0', 
+              paddingTop: '24px',
+              marginTop: '8px'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 20px 0', 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: '#1a1a1a'
+              }}>
+                Who's Going
+              </h3>
+              
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '1fr auto 1fr',
+                gap: '24px',
+                alignItems: 'start'
+              }}>
+                {/* Going */}
+                <div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: '#0066ff',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <span style={{ fontSize: '16px' }}>✓</span>
+                    Going ({allAttendance.filter(a => a.status === 'attending').length})
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: '6px' 
+                  }}>
+                    {allAttendance
+                      .filter(a => a.status === 'attending')
+                      .map(attendee => (
+                        <div
+                          key={attendee.userId}
+                          style={{
+                            fontSize: '14px',
+                            color: '#1a1a1a'
+                          }}
+                        >
+                          {attendee.userName}
+                        </div>
+                      ))}
+                    {allAttendance.filter(a => a.status === 'attending').length === 0 && (
+                      <div style={{ fontSize: '14px', color: '#999', fontStyle: 'italic' }}>
+                        No one yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{
+                  width: '1px',
+                  height: '100%',
+                  minHeight: '100px',
+                  backgroundColor: '#e0e0e0'
+                }} />
+
+                {/* Tempted */}
+                <div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: '#ff9500',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <span style={{ fontSize: '16px' }}>🤔</span>
+                    Tempted ({allAttendance.filter(a => a.status === 'tempted').length})
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: '6px' 
+                  }}>
+                    {allAttendance
+                      .filter(a => a.status === 'tempted')
+                      .map(attendee => (
+                        <div
+                          key={attendee.userId}
+                          style={{
+                            fontSize: '14px',
+                            color: '#1a1a1a'
+                          }}
+                        >
+                          {attendee.userName}
+                        </div>
+                      ))}
+                    {allAttendance.filter(a => a.status === 'tempted').length === 0 && (
+                      <div style={{ fontSize: '14px', color: '#999', fontStyle: 'italic' }}>
+                        No one yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Rating Section */}

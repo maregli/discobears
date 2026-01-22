@@ -88,7 +88,8 @@ const createCustomIcon = (isHighlighted: boolean, count?: number, isMobile: bool
 const MapEventHandler: React.FC<{ 
   onZoomEnd: (zoom: number) => void;
   onMoveEnd: (bounds: L.LatLngBounds, center: L.LatLng) => void;
-}> = ({ onZoomEnd, onMoveEnd }) => {
+  onMapClick?: () => void;
+}> = ({ onZoomEnd, onMoveEnd, onMapClick }) => {
   const lastZoomRef = useRef<number | null>(null);
   const lastBoundsRef = useRef<string | null>(null);
   
@@ -118,6 +119,12 @@ const MapEventHandler: React.FC<{
       if (lastBoundsRef.current !== boundsKey) {
         lastBoundsRef.current = boundsKey;
         onMoveEnd(bounds, center);
+      }
+    },
+    click: () => {
+      // Handle map background clicks
+      if (onMapClick) {
+        onMapClick();
       }
     },
   });
@@ -421,17 +428,11 @@ const FestivalMap: React.FC = () => {
     if (cluster.festivals.length === 1) {
       // Single festival
       if (isMobile) {
-        // On mobile, update bottom sheet to show this festival
+        // On mobile, update bottom sheet to show this festival (no zoom)
         const festivalIndex = visibleFestivals.findIndex(f => f.id === cluster.festivals[0].id);
         if (festivalIndex !== -1) {
           setCurrentBottomSheetIndex(festivalIndex);
           setShowBottomSheet(true);
-          // Center map on this festival
-          if (mapRef.current) {
-            mapRef.current.setView([cluster.center.lat, cluster.center.lng], 12, {
-              animate: true
-            });
-          }
         }
       } else {
         // On desktop, open detail overlay
@@ -770,6 +771,13 @@ const FestivalMap: React.FC = () => {
                   setMapBounds(bounds);
                   setMapCenter([center.lat, center.lng]);
                 }}
+                onMapClick={() => {
+                  // Close bottom sheet on map background click
+                  if (showBottomSheet) {
+                    setShowBottomSheet(false);
+                    setIsBottomSheetExpanded(false);
+                  }
+                }}
               />
               
               {clusteredFestivals.map((cluster, idx) => {
@@ -779,11 +787,15 @@ const FestivalMap: React.FC = () => {
                 
                 return (
                   <Marker
-                    key={`mobile-marker-${idx}-${festivalIds}-${isHighlighted ? 'highlighted' : 'normal'}`}
+                    key={`mobile-marker-${idx}-${festivalIds}`}
                     position={[cluster.center.lat, cluster.center.lng]}
                     icon={createCustomIcon(isHighlighted, isCluster ? cluster.festivals.length : undefined, isMobile)}
                     eventHandlers={{
-                      click: () => handleClusterClick(cluster)
+                      click: (e) => {
+                        // Stop propagation to prevent map click from closing bottom sheet
+                        L.DomEvent.stopPropagation(e);
+                        handleClusterClick(cluster);
+                      }
                     }}
                   />
                 );
@@ -1055,7 +1067,7 @@ const FestivalMap: React.FC = () => {
                 
                 return (
                   <Marker
-                    key={`marker-${idx}-${festivalIds}-${isHighlighted ? 'highlighted' : 'normal'}`}
+                    key={`marker-${idx}-${festivalIds}`}
                     position={[cluster.center.lat, cluster.center.lng]}
                     icon={createCustomIcon(isHighlighted, isCluster ? cluster.festivals.length : undefined, isMobile)}
                     eventHandlers={{

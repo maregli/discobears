@@ -214,16 +214,35 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                     <span>{monthNames[dateRange.endMonth - 1]}</span>
                   </div>
 
-                  {/* Start Month Slider */}
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      fontSize: '13px', 
-                      color: '#888',
-                      marginBottom: '8px'
-                    }}>
-                      From: {monthNames[dateRange.startMonth - 1]}
-                    </label>
+                  {/* Dual-thumb Range Slider */}
+                  <div style={{ 
+                    position: 'relative', 
+                    height: '50px',
+                    paddingTop: '12px'
+                  }}>
+                    {/* Track background */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '22px',
+                      left: '0',
+                      right: '0',
+                      height: '6px',
+                      backgroundColor: '#e0e0e0',
+                      borderRadius: '3px'
+                    }} />
+                    
+                    {/* Active track (between thumbs) */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '22px',
+                      left: `${((dateRange.startMonth - 1) / 11) * 100}%`,
+                      width: `${((dateRange.endMonth - dateRange.startMonth) / 11) * 100}%`,
+                      height: '6px',
+                      backgroundColor: '#0066ff',
+                      borderRadius: '3px'
+                    }} />
+
+                    {/* Start thumb */}
                     <input
                       type="range"
                       min="1"
@@ -238,24 +257,17 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                         });
                       }}
                       style={{
+                        position: 'absolute',
                         width: '100%',
-                        height: '8px',
-                        cursor: 'pointer',
-                        accentColor: '#0066ff'
+                        top: '12px',
+                        margin: 0,
+                        pointerEvents: 'all',
+                        background: 'transparent',
+                        cursor: 'pointer'
                       }}
                     />
-                  </div>
 
-                  {/* End Month Slider */}
-                  <div>
-                    <label style={{ 
-                      display: 'block', 
-                      fontSize: '13px', 
-                      color: '#888',
-                      marginBottom: '8px'
-                    }}>
-                      To: {monthNames[dateRange.endMonth - 1]}
-                    </label>
+                    {/* End thumb */}
                     <input
                       type="range"
                       min="1"
@@ -270,12 +282,32 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                         });
                       }}
                       style={{
+                        position: 'absolute',
                         width: '100%',
-                        height: '8px',
-                        cursor: 'pointer',
-                        accentColor: '#0066ff'
+                        top: '12px',
+                        margin: 0,
+                        pointerEvents: 'all',
+                        background: 'transparent',
+                        cursor: 'pointer'
                       }}
                     />
+                  </div>
+
+                  {/* Month tick marks */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '11px',
+                    color: '#999',
+                    marginTop: '8px',
+                    paddingLeft: '2px',
+                    paddingRight: '2px'
+                  }}>
+                    {monthNames.map((month, idx) => (
+                      <span key={idx} style={{ width: '28px', textAlign: 'center' }}>
+                        {month}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -391,6 +423,46 @@ const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
           to {
             opacity: 1;
           }
+        }
+
+        input[type="range"] {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 24px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #0066ff;
+          cursor: pointer;
+          border: 3px solid white;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          position: relative;
+          z-index: 3;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #0066ff;
+          cursor: pointer;
+          border: 3px solid white;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          position: relative;
+          z-index: 3;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+          background: transparent;
+        }
+        
+        input[type="range"]::-moz-range-track {
+          background: transparent;
         }
       `}</style>
     </>
