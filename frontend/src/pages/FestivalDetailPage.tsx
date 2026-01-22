@@ -71,6 +71,7 @@ const FestivalDetailPage: React.FC = () => {
 
     try {
       // Keep existing ratings, update only the clicked category
+      // Only include categories that have been rated (value > 0)
       const newRatings = {
         overall: category === 'overall' ? rating : (userRating?.overall || 0),
         lineup: category === 'lineup' ? rating : (userRating?.lineup || 0),
@@ -79,14 +80,17 @@ const FestivalDetailPage: React.FC = () => {
       
       await submitRating(festivalId, user.uid, user.email || '', newRatings);
       
-      // Update local state
-      setUserRating({
+      // Update local state with the new ratings
+      const updatedUserRating = {
         userId: user.uid,
         userEmail: user.email || '',
-        ...newRatings,
+        overall: newRatings.overall,
+        lineup: newRatings.lineup,
+        location: newRatings.location,
         createdAt: userRating?.createdAt || new Date(),
         updatedAt: new Date()
-      });
+      };
+      setUserRating(updatedUserRating);
       
       // Reload festival ratings
       const updatedRatings = await getFestivalRatings(festivalId);

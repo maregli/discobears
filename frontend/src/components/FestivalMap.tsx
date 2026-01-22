@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { subscribeToFestivals, isUserAdmin } from 'firebaseServices/firestore';
+import { isUserAdmin } from 'firebaseServices/firestore';
 import { Festival } from 'types/festival';
 import FestivalCard from './FestivalCard';
 import FilterPanel from './FilterPanel';
@@ -11,7 +11,9 @@ import LoginModal from './LoginModal';
 import MobileFilterDrawer from './MobileFilterDrawer';
 import MobileProfileDrawer from './MobileProfileDrawer';
 import FestivalBottomSheet from './FestivalBottomSheet';
+import FestivalDetailOverlay from './FestivalDetailOverlay';
 import { useAuth } from 'contexts/AuthContext';
+import { useFestivals } from 'contexts/FestivalsContext';
 import { useIsMobile } from 'hooks/useIsMobile';
 import { useViewportHeight } from 'hooks/useViewportHeight';
 
@@ -85,7 +87,7 @@ const createCustomIcon = (isHighlighted: boolean, count?: number, isMobile: bool
 // Component to handle map events without causing zoom loops
 const MapEventHandler: React.FC<{ 
   onZoomEnd: (zoom: number) => void;
-  onMoveEnd: (bounds: L.LatLngBounds) => void;
+  onMoveEnd: (bounds: L.LatLngBounds, center: L.LatLng) => void;
 }> = ({ onZoomEnd, onMoveEnd }) => {
   const lastZoomRef = useRef<number | null>(null);
   const lastBoundsRef = useRef<string | null>(null);
@@ -94,6 +96,7 @@ const MapEventHandler: React.FC<{
     zoomend: () => {
       const currentZoom = map.getZoom();
       const bounds = map.getBounds();
+      const center = map.getCenter();
       const boundsKey = `${bounds.getNorth()},${bounds.getSouth()},${bounds.getEast()},${bounds.getWest()}`;
       
       // Only trigger callbacks if values actually changed
@@ -104,16 +107,17 @@ const MapEventHandler: React.FC<{
       
       if (lastBoundsRef.current !== boundsKey) {
         lastBoundsRef.current = boundsKey;
-        onMoveEnd(bounds);
+        onMoveEnd(bounds, center);
       }
     },
     moveend: () => {
       const bounds = map.getBounds();
+      const center = map.getCenter();
       const boundsKey = `${bounds.getNorth()},${bounds.getSouth()},${bounds.getEast()},${bounds.getWest()}`;
       
       if (lastBoundsRef.current !== boundsKey) {
         lastBoundsRef.current = boundsKey;
-        onMoveEnd(bounds);
+        onMoveEnd(bounds, center);
       }
     },
   });
@@ -182,25 +186,30 @@ const clusterFestivals = (festivals: Festival[], zoom: number) => {
 
 const FestivalMap: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
+  const { festivals, isLoading, error } = useFestivals();
   const isMobile = useIsMobile();
   const viewportHeight = useViewportHeight();
-  const [festivals, setFestivals] = useState<Festival[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [highlightedFestival, setHighlightedFestival] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
-  const [currentZoom, setCurrentZoom] = useState(5);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
   
   // Mobile-specific states
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [showMobileProfile, setShowMobileProfile] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [currentBottomSheetIndex, setCurrentBottomSheetIndex] = useState(0);
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
+  
+  // Read overlay states from query params
+  const festivalId = searchParams.get('festival');
+  const showMobileFilters = searchParams.get('filters') === 'true';
+  const showMobileProfile = searchParams.get('profile') === 'true';
+  
+  // Map state
+  const [mapCenter, setMapCenter] = useState<[number, number]>([50, 10]);
+  const [currentZoom, setCurrentZoom] = useState(5);
   
   // Filters
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -212,16 +221,43 @@ const FestivalMap: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const mapRef = useRef<L.Map | null>(null);
-
-  useEffect(() => {
-    console.log('Subscribing to festivals...');
-    const unsubscribe = subscribeToFestivals(setFestivals, setIsLoading, setError);
-    
-    return () => {
-      console.log('Unsubscribing from festivals');
-      unsubscribe();
-    };
-  }, []);
+  
+  // Helper functions to update query params
+  const openFestivalOverlay = (id: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('festival', id);
+    setSearchParams(params);
+  };
+  
+  const closeFestivalOverlay = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('festival');
+    setSearchParams(params);
+  };
+  
+  const openFiltersOverlay = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set('filters', 'true');
+    setSearchParams(params);
+  };
+  
+  const closeFiltersOverlay = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('filters');
+    setSearchParams(params);
+  };
+  
+  const openProfileOverlay = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set('profile', 'true');
+    setSearchParams(params);
+  };
+  
+  const closeProfileOverlay = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('profile');
+    setSearchParams(params);
+  };
 
   // Check if current user is admin
   useEffect(() => {
@@ -325,16 +361,26 @@ const FestivalMap: React.FC = () => {
 
   // Filter festivals for SIDEBAR display (only those visible in current map bounds)
   const visibleFestivals = useMemo(() => {
+    let festivals;
+    
     if (!mapBounds) {
       // If no bounds yet, show all filtered festivals
-      return filteredFestivals;
+      festivals = filteredFestivals;
+    } else {
+      festivals = filteredFestivals.filter(f => {
+        if (!f.coordinates) return false;
+        
+        // Check if festival coordinates are within current map bounds
+        return mapBounds.contains([f.coordinates.lat, f.coordinates.lng]);
+      });
     }
 
-    return filteredFestivals.filter(f => {
-      if (!f.coordinates) return false;
-      
-      // Check if festival coordinates are within current map bounds
-      return mapBounds.contains([f.coordinates.lat, f.coordinates.lng]);
+    // Sort by average overall rating (highest first)
+    // Festivals without ratings come last
+    return festivals.sort((a, b) => {
+      const ratingA = a.rating_overall_average ?? -1;
+      const ratingB = b.rating_overall_average ?? -1;
+      return ratingB - ratingA;
     });
   }, [filteredFestivals, mapBounds]);
 
@@ -388,8 +434,8 @@ const FestivalMap: React.FC = () => {
           }
         }
       } else {
-        // On desktop, navigate to detail page
-        navigate(`/festival/${cluster.festivals[0].id}`);
+        // On desktop, open detail overlay
+        openFestivalOverlay(cluster.festivals[0].id);
       }
     } else if (mapRef.current) {
       // Multiple festivals cluster
@@ -566,7 +612,7 @@ const FestivalMap: React.FC = () => {
                 
                 {/* Filter Button */}
                 <button
-                  onClick={() => setShowMobileFilters(true)}
+                  onClick={openFiltersOverlay}
                   title="Filter"
                   style={{
                     background: 'none',
@@ -616,7 +662,7 @@ const FestivalMap: React.FC = () => {
               
               {/* Profile Button - Round White Button */}
               <button
-                onClick={() => setShowMobileProfile(true)}
+                onClick={openProfileOverlay}
                 title="Profile"
                 style={{
                   width: '48px',
@@ -720,7 +766,10 @@ const FestivalMap: React.FC = () => {
               
               <MapEventHandler 
                 onZoomEnd={setCurrentZoom} 
-                onMoveEnd={setMapBounds}
+                onMoveEnd={(bounds, center) => {
+                  setMapBounds(bounds);
+                  setMapCenter([center.lat, center.lng]);
+                }}
               />
               
               {clusteredFestivals.map((cluster, idx) => {
@@ -755,13 +804,14 @@ const FestivalMap: React.FC = () => {
               isPersistent={true}
               isExpanded={isBottomSheetExpanded}
               onToggleExpand={() => setIsBottomSheetExpanded(!isBottomSheetExpanded)}
+              onOpenDetail={openFestivalOverlay}
             />
           )}
 
           {/* Mobile Filter Drawer */}
           <MobileFilterDrawer
             isOpen={showMobileFilters}
-            onClose={() => setShowMobileFilters(false)}
+            onClose={closeFiltersOverlay}
             genres={allGenres}
             selectedGenres={selectedGenres}
             onGenreChange={setSelectedGenres}
@@ -774,7 +824,7 @@ const FestivalMap: React.FC = () => {
           {/* Mobile Profile Drawer */}
           <MobileProfileDrawer
             isOpen={showMobileProfile}
-            onClose={() => setShowMobileProfile(false)}
+            onClose={closeProfileOverlay}
             onOpenLogin={() => setShowLoginModal(true)}
           />
         </div>
@@ -935,6 +985,7 @@ const FestivalMap: React.FC = () => {
                     onLeave={() => setHighlightedFestival(null)}
                     onClick={() => handleFestivalClick(festival)}
                     isHighlighted={highlightedFestival === festival.id}
+                    onOpenDetail={openFestivalOverlay}
                   />
                 ))
               ) : (
@@ -991,7 +1042,10 @@ const FestivalMap: React.FC = () => {
               
               <MapEventHandler 
                 onZoomEnd={setCurrentZoom} 
-                onMoveEnd={setMapBounds}
+                onMoveEnd={(bounds, center) => {
+                  setMapBounds(bounds);
+                  setMapCenter([center.lat, center.lng]);
+                }}
               />
               
               {clusteredFestivals.map((cluster, idx) => {
@@ -1033,7 +1087,7 @@ const FestivalMap: React.FC = () => {
                         {cluster.festivals.map((festival, festivalIdx) => (
                           <div
                             key={festival.id}
-                            onClick={() => navigate(`/festival/${festival.id}`)}
+                            onClick={() => openFestivalOverlay(festival.id)}
                             onMouseEnter={() => setHighlightedFestival(festival.id)}
                             onMouseLeave={() => setHighlightedFestival(null)}
                             style={{
@@ -1044,84 +1098,53 @@ const FestivalMap: React.FC = () => {
                               transition: 'background-color 0.2s ease'
                             }}
                           >
+                            {/* Name */}
                             <div style={{ 
                               fontWeight: '600', 
                               fontSize: '14px', 
-                              marginBottom: '6px',
-                              color: '#0066ff',
-                              textDecoration: 'none'
+                              marginBottom: '8px',
+                              color: '#0066ff'
                             }}>
                               {festival.name}
                             </div>
                             
-                            {/* Location and Date */}
-                            <div style={{
-                              fontSize: '12px',
-                              color: '#666',
-                              marginBottom: '4px'
-                            }}>
-                              📍 {festival.parsed_city || festival.region}
-                            </div>
-                            
-                            <div style={{
-                              fontSize: '12px',
-                              color: '#666',
-                              marginBottom: '6px'
-                            }}>
-                              📅 {festival.dates}
-                            </div>
-                            
-                            {/* Rating */}
+                            {/* Rating - Modern & Sleek */}
                             {festival.rating_overall_count && festival.rating_overall_count > 0 ? (
                               <div style={{ 
                                 fontSize: '12px', 
                                 color: '#666',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '4px',
+                                marginBottom: '6px'
                               }}>
-                                <span style={{ color: '#ffd700' }}>★</span>
-                                {festival.rating_overall_average?.toFixed(1)} 
-                                <span style={{ color: '#999' }}>
-                                  ({festival.rating_overall_count} {festival.rating_overall_count === 1 ? 'review' : 'reviews'})
+                                <span style={{ color: '#ffa500' }}>★</span>
+                                <span style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                                  {festival.rating_overall_average?.toFixed(1)}
                                 </span>
                               </div>
                             ) : (
-                              <div style={{ fontSize: '12px', color: '#999' }}>
-                                No ratings yet
+                              <div style={{ fontSize: '12px', color: '#999', marginBottom: '6px' }}>
+                                No ratings
                               </div>
                             )}
                             
-                            {/* Genres */}
-                            {festival.genres.length > 0 && (
-                              <div style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '4px',
-                                marginTop: '6px'
-                              }}>
-                                {festival.genres.slice(0, 3).map((genre, idx) => (
-                                  <span
-                                    key={idx}
-                                    style={{
-                                      backgroundColor: '#e8f0fe',
-                                      color: '#0066ff',
-                                      padding: '2px 6px',
-                                      borderRadius: '10px',
-                                      fontSize: '11px',
-                                      fontWeight: '500'
-                                    }}
-                                  >
-                                    {genre}
-                                  </span>
-                                ))}
-                                {festival.genres.length > 3 && (
-                                  <span style={{ fontSize: '11px', color: '#999' }}>
-                                    +{festival.genres.length - 3}
-                                  </span>
-                                )}
-                              </div>
-                            )}
+                            {/* Date */}
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#666',
+                              marginBottom: '4px'
+                            }}>
+                              📅 {festival.dates}
+                            </div>
+                            
+                            {/* Location */}
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#666'
+                            }}>
+                              📍 {festival.parsed_city || festival.region}
+                            </div>
                           </div>
                         ))}
                         
@@ -1147,6 +1170,14 @@ const FestivalMap: React.FC = () => {
       )}
 
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      
+      {/* Festival Detail Overlay */}
+      {festivalId && (
+        <FestivalDetailOverlay
+          festivalId={festivalId}
+          onClose={closeFestivalOverlay}
+        />
+      )}
     </div>
   );
 };

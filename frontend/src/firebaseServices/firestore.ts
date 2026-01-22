@@ -126,8 +126,19 @@ export const submitRating = async (
       updatedAt: serverTimestamp()
     });
     
-    // Note: Festival aggregate updates would need Cloud Functions or backend endpoint
-    // For now, we calculate ratings on-demand when viewing
+    // Update denormalized rating fields on festival document
+    // Get all ratings and recalculate aggregates
+    const updatedRatings = await getFestivalRatings(festivalId);
+    const festivalRef = doc(db, 'festivals', festivalId);
+    
+    await updateDoc(festivalRef, {
+      rating_overall_average: updatedRatings.overall.average,
+      rating_overall_count: updatedRatings.overall.count,
+      rating_lineup_average: updatedRatings.lineup.average,
+      rating_lineup_count: updatedRatings.lineup.count,
+      rating_location_average: updatedRatings.location.average,
+      rating_location_count: updatedRatings.location.count
+    });
     
   } catch (error) {
     console.error('Error submitting rating:', error);
@@ -177,7 +188,8 @@ export const getFestivalRatings = async (festivalId: string): Promise<FestivalRa
     const ratings = ratingsSnap.docs.map(doc => doc.data());
     
     const calculateAverage = (category: 'overall' | 'lineup' | 'location') => {
-      const values = ratings.map(r => r[category]).filter(v => v !== undefined && v !== null);
+      // Filter out undefined, null, and 0 values (0 means not rated)
+      const values = ratings.map(r => r[category]).filter(v => v !== undefined && v !== null && v > 0);
       if (values.length === 0) return { average: 0, count: 0 };
       const sum = values.reduce((acc, val) => acc + val, 0);
       return {

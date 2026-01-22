@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Festival } from 'types/festival';
 import { useViewportHeight } from 'hooks/useViewportHeight';
 
@@ -12,6 +11,7 @@ interface FestivalBottomSheetProps {
   isPersistent?: boolean; // If true, no close button/backdrop
   isExpanded?: boolean; // If true, show expanded view
   onToggleExpand?: () => void; // Toggle between collapsed and expanded
+  onOpenDetail?: (festivalId: string) => void;
 }
 
 const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
@@ -22,9 +22,9 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   onIndexChange,
   isPersistent = false,
   isExpanded = false,
-  onToggleExpand
+  onToggleExpand,
+  onOpenDetail
 }) => {
-  const navigate = useNavigate();
   const viewportHeight = useViewportHeight();
   const [internalIndex, setInternalIndex] = useState(initialIndex);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -96,7 +96,9 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
   };
 
   const handleViewDetails = (festivalId: string) => {
-    navigate(`/festival/${festivalId}`);
+    if (onOpenDetail) {
+      onOpenDetail(festivalId);
+    }
   };
 
   return (
@@ -171,6 +173,7 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
           {festivals.map((festival, idx) => (
             <div
               key={festival.id}
+              onClick={() => handleViewDetails(festival.id)}
               style={{
                 minWidth: '85vw',
                 maxWidth: '85vw',
@@ -184,46 +187,51 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
                 gap: '12px',
                 transition: 'transform 0.2s ease, opacity 0.2s ease',
                 opacity: idx === safeIndex ? 1 : 0.7,
-                transform: idx === safeIndex ? 'scale(1)' : 'scale(0.95)'
+                transform: idx === safeIndex ? 'scale(1)' : 'scale(0.95)',
+                cursor: 'pointer'
               }}
             >
-              {/* Festival Header */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '12px'
+              {/* Name */}
+              <h3 style={{
+                margin: 0,
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#0066ff',
+                lineHeight: '1.3'
               }}>
-                <h3 
-                  onClick={() => handleViewDetails(festival.id)}
-                  style={{
-                    margin: 0,
-                    fontSize: '18px',
-                    fontWeight: '700',
-                    color: '#0066ff',
-                    flex: 1,
-                    lineHeight: '1.3',
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  {festival.name}
-                </h3>
-                {festival.rating_overall_count && festival.rating_overall_count > 0 && (
-                  <div style={{
-                    backgroundColor: '#0066ff',
-                    color: 'white',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                    minWidth: '45px',
-                    textAlign: 'center',
-                    flexShrink: 0
-                  }}>
-                    ⭐ {festival.rating_overall_average?.toFixed(1)}
-                  </div>
-                )}
+                {festival.name}
+              </h3>
+
+              {/* Rating - Modern & Sleek */}
+              {festival.rating_overall_count && festival.rating_overall_count > 0 ? (
+                <div style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '14px',
+                  color: '#666'
+                }}>
+                  <span style={{ color: '#ffa500' }}>★</span>
+                  <span style={{ fontWeight: '600', color: '#1a1a1a' }}>
+                    {festival.rating_overall_average?.toFixed(1)}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '14px', color: '#999' }}>
+                  No ratings
+                </div>
+              )}
+
+              {/* Date */}
+              <div style={{
+                fontSize: '15px',
+                color: '#666',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '18px' }}>📅</span>
+                <span>{festival.dates}</span>
               </div>
 
               {/* Location */}
@@ -235,69 +243,8 @@ const FestivalBottomSheet: React.FC<FestivalBottomSheetProps> = ({
                 gap: '8px'
               }}>
                 <span style={{ fontSize: '18px' }}>📍</span>
-                <span style={{ fontWeight: '500' }}>{festival.parsed_city || festival.region}</span>
+                <span>{festival.parsed_city || festival.region}</span>
               </div>
-
-              {/* Date */}
-              <div style={{
-                fontSize: '15px',
-                color: '#666',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span style={{ fontSize: '18px' }}>📅</span>
-                <span style={{ fontWeight: '500' }}>{festival.dates}</span>
-              </div>
-
-              {/* Genres */}
-              {festival.genres.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '6px',
-                  marginTop: '4px'
-                }}>
-                  {festival.genres.slice(0, 4).map((genre, genreIdx) => (
-                    <span
-                      key={genreIdx}
-                      style={{
-                        backgroundColor: '#e8f0fe',
-                        color: '#0066ff',
-                        padding: '4px 10px',
-                        borderRadius: '12px',
-                        fontSize: '13px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                  {festival.genres.length > 4 && (
-                    <span style={{
-                      backgroundColor: '#f0f0f0',
-                      color: '#666',
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '13px',
-                      fontWeight: '600'
-                    }}>
-                      +{festival.genres.length - 4}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Rating info */}
-              {festival.rating_overall_count && festival.rating_overall_count > 0 && (
-                <div style={{
-                  fontSize: '13px',
-                  color: '#888',
-                  marginTop: '4px'
-                }}>
-                  Based on {festival.rating_overall_count} {festival.rating_overall_count === 1 ? 'review' : 'reviews'}
-                </div>
-              )}
             </div>
           ))}
         </div>
